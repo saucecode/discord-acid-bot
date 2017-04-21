@@ -87,3 +87,7 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+secrettoken
+markov.pickle
+logs.db
