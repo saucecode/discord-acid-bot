@@ -1,2 +1,2 @@
-# discord-acid-bot
+# Acid-Bot
 My personal Discord bot
