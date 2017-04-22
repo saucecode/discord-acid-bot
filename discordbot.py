@@ -18,6 +18,7 @@ sql_c = sql.cursor()
 class Markov():
 	def __init__(self):
 		self.users = {}
+		self.users_incomplete = {}
 		if os.path.exists('markov.pickle'):
 			self.load()
 	
@@ -34,11 +35,21 @@ class Markov():
 		if not userid in self.users:
 			self.users[userid] = {}
 		
-		for triple in self.get_triples(sterile):
-			if not triple[:2] in self.users[userid]:
-				self.users[userid][triple[:2]] = []
+		if not userid in self.users_incomplete:
+			self.users_incomplete[userid] = []
 			
-			self.users[userid][triple[:2]].append(triple[2])
+		if len(sterile.split(' ')) < 3:
+			self.users_incomplete[userid].extend(sterile.split(' '))
+
+		else:
+			sterile = ' '.join(self.remove_duplicates(self.users_incomplete[userid])) + ' ' + sterile
+			self.users_incomplete[userid].clear()
+			
+			for triple in self.get_triples(sterile):
+				if not triple[:2] in self.users[userid]:
+					self.users[userid][triple[:2]] = []
+			
+				self.users[userid][triple[:2]].append(triple[2])
 	
 	def get_triples(self, words):
 		words_split = words.split(' ')
@@ -50,6 +61,11 @@ class Markov():
 			except:
 				return triples
 		return triples
+	
+	def remove_duplicates(self, seq):
+		seen = set()
+		seen_add = seen.add
+		return [x for x in seq if not (x in seen or seen_add(x))]
 	
 	def imitate(self, userid, max_length=20):
 		output = []
