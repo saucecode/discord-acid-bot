@@ -179,7 +179,9 @@ async def on_message(message):
 	elif message.content.startswith('\\ud'):
 		word = message.content[4:]
 		definition = dictionary.get_urban_definitions(word)[0]
-		await client.send_message(message.channel, '```%s\n\nexample/s: %s```' % (definition['definition'], definition['example']))
+		for i in range(len(definition['definition'])//2000 + 1):
+			await client.send_message(message.channel, '```%s```' % definition['definition'][i*2000:i*2000+2000])
+		await client.send_message(message.channel, '```examples: %s```' % definition['example'])
 	
 	elif message.content.startswith('\\imitate'):
 		name = message.content[9:]
