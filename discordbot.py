@@ -219,7 +219,7 @@ async def on_message(message):
 		else:
 			await client.send_message(message.channel, 'Could not find %s in markov.users' % (target,))
 	
-	elif message.content.startswith('\\markovfeed') and int(message.author.id) == 181227668241383425:
+	elif message.content.startswith('\\markovfeed') and int(message.author.id) in [181227668241383425, 304098431973064705]:
 		username = message.content.split(' ')[1]
 		url = message.content.split(' ')[2]
 		resp = requests.get(url)
@@ -228,6 +228,15 @@ async def on_message(message):
 		else:
 			markov.add_words(username, remove_urls(resp.text))
 			await client.send_message(message.channel, 'Added to %s with new score: %i' % (username, len(markov.users[username])) )
+	
+	elif message.content.startswith('\\50/50'):
+		dat = requests.get('https://reddit.com/r/fiftyfifty/.json', headers={'User-Agent':'Discord-Acid-Bot /u/saucecode'}).json()
+		urls = [(i['data']['title'], i['data']['url']) for i in dat['data']['children'] if 'imgur.com' in i['data']['url'] or 'i.redd.it' in i['data']['url'] or '5050.degstu' in i['data']['url']]
+		titles,url = random.choice(urls)
+		await client.send_message(message.channel, '`%s` or...' % titles.split('|')[0].replace('[50/50] ','') )
+		await client.send_message(message.channel, '`%s`' % titles.split('|')[1] )
+		await asyncio.sleep(7)
+		await client.send_message(message.channel, url)
 	
 	elif message.content.startswith('\\help'):
 		await client.send_message(message.channel, HELP_STRING)
