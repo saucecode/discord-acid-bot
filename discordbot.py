@@ -186,6 +186,8 @@ async def on_message(message):
 	
 	elif message.content.startswith('\\imitate'):
 		name = message.content.split(' ')[1]
+		opts = []
+		opts.extend(message.content.split(' ')[2:])
 		
 		max_length = 20
 		try:
@@ -194,7 +196,7 @@ async def on_message(message):
 			pass
 		
 		if name in markov.users:
-			await client.send_message(message.channel, '`%s`' % (markov.imitate(name, max_length=max_length),))
+			await client.send_message(message.channel, '`%s`' % (markov.imitate(name, max_length=max_length),), tts='tts' in opts)
 	
 	elif message.content.startswith('\\markovsave'):
 		markov.save()
@@ -226,7 +228,6 @@ async def on_message(message):
 		else:
 			markov.add_words(username, remove_urls(resp.text))
 			await client.send_message(message.channel, 'Added to %s with new score: %i' % (username, len(markov.users[username])) )
-		
 	
 	elif message.content.startswith('\\help'):
 		await client.send_message(message.channel, HELP_STRING)
