@@ -30,8 +30,6 @@ class Markov():
 		
 		sterile = re.sub(' +',' ',re.sub(r'[^a-zA-Z0-9\ ]', '', words.replace('\r','').replace('\n',' ').replace('\t', ' ')).strip().lower())
 		
-		print(sterile)
-		
 		if not userid in self.users:
 			self.users[userid] = {}
 		
@@ -221,7 +219,6 @@ async def on_message_edit(before, message):
 @client.event
 async def on_message_delete(message):
 	# log edits
-	print(message)
 	sql_c.execute('INSERT INTO logs VALUES (?,?,?,?,?,?,?,?,?)', (message.timestamp.timestamp(), message.channel.name, int(message.author.id), message.author.name, message.author.display_name, int(message.id), 1, 0, str(message.content)))
 	sql.commit()
 

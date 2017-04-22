@@ -11,5 +11,6 @@ def get_definitions(word):
 	return strings
 
 def get_urban_definitions(word):
-	dat = requests.get('http://api.urbandictionary.com/v0/define?term=%s' % urllib.parse.quote(word)).json()
+	url = 'http://api.urbandictionary.com/v0/define?term=%s' % urllib.parse.quote(word)
+	dat = requests.get(url).json()
 	return dat['list']
