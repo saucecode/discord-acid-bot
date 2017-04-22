@@ -110,7 +110,8 @@ HELP_STRING = r'''Acid-Bot Commands```
 \markovusers         List users' markov ratings (higher number means better \imitate)
 
 Debug (Admin) Commands:
-\markovsave \markovload \markovclear [username] \rename [newname] \setgame [playing]```'''
+\markovsave \markovload \markovclear [username] \markovfeed [username] [url]
+\rename [newname] \setgame [playing]```'''
 
 
 @client.event
@@ -184,9 +185,16 @@ async def on_message(message):
 		await client.send_message(message.channel, '```examples: %s```' % definition['example'])
 	
 	elif message.content.startswith('\\imitate'):
-		name = message.content[9:]
+		name = message.content.split(' ')[1]
+		
+		max_length = 20
+		try:
+			max_length = int(message.content.split(' ')[2])
+		except:
+			pass
+		
 		if name in markov.users:
-			await client.send_message(message.channel, '`%s`' % (markov.imitate(name),))
+			await client.send_message(message.channel, '`%s`' % (markov.imitate(name, max_length=max_length),))
 	
 	elif message.content.startswith('\\markovsave'):
 		markov.save()
@@ -208,6 +216,17 @@ async def on_message(message):
 			await client.send_message(message.channel, 'Cleared markov data for %s' % (target,))
 		else:
 			await client.send_message(message.channel, 'Could not find %s in markov.users' % (target,))
+	
+	elif message.content.startswith('\\markovfeed') and int(message.author.id) == 181227668241383425:
+		username = message.content.split(' ')[1]
+		url = message.content.split(' ')[2]
+		resp = requests.get(url)
+		if not 'Content-Type' in resp.headers or not 'text/plain' in resp.headers['Content-Type']:
+			await client.send_message(message.channel, 'Not a plaintext file - cannot read!')
+		else:
+			markov.add_words(username, remove_urls(resp.text))
+			await client.send_message(message.channel, 'Added to %s with new score: %i' % (username, len(markov.users[username])) )
+		
 	
 	elif message.content.startswith('\\help'):
 		await client.send_message(message.channel, HELP_STRING)
