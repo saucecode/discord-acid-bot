@@ -10,6 +10,7 @@ import os
 
 import postfix
 import dictionarycom as dictionary
+from sailortalk import sailor_word
 
 client = discord.Client()
 sql = sqlite3.connect('logs.db')
@@ -142,6 +143,9 @@ async def on_message(message):
 		imgurs = [i for i in urls if 'imgur.com' in i or 'i.redd.it' in i]
 		await client.send_message(message.channel, random.choice(imgurs))
 	
+	elif message.content.startswith('/r'):
+		await client.send_message(message.channel, 'It\'s a backslash, %s.' % sailor_word())
+	
 	elif message.content.startswith('\\calc'):
 		await client.send_message(message.channel, postfix.outputResult( postfix.doPostfix(message.content[6:]) ))
 
@@ -247,8 +251,11 @@ async def on_message(message):
 @client.event
 async def on_message_edit(before, message):
 	# log edits
-	sql_c.execute('INSERT INTO logs VALUES (?,?,?,?,?,?,?,?,?)', (message.edited_timestamp.timestamp(), message.channel.name, int(message.author.id), message.author.name, message.author.display_name, int(message.id), 0, 1, str(message.content)))
-	sql.commit()
+	try:
+		sql_c.execute('INSERT INTO logs VALUES (?,?,?,?,?,?,?,?,?)', (message.edited_timestamp.timestamp(), message.channel.name, int(message.author.id), message.author.name, message.author.display_name, int(message.id), 0, 1, str(message.content)))
+		sql.commit()
+	except AttributeError:
+		pass
 
 @client.event
 async def on_message_delete(message):
