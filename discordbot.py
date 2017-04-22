@@ -106,11 +106,14 @@ HELP_STRING = r'''Acid-Bot Commands```
 \ping                Pong.
 \define [word]       Lookup the definition of [word]
 \ud [word]           Lookup the urban definition of [word]
-\imitate [username]  Imitate [username] (Markov Chains!).
+\50/50               You feeling lucky?
+
+\imitate [username] (length) (tts)  Imitate [username] (Markov Chains!).
 \markovusers         List users' markov ratings (higher number means better \imitate)
+\markovsave          Save markov data to disk
 
 Debug (Admin) Commands:
-\markovsave \markovload \markovclear [username] \markovfeed [username] [url]
+\markovload \markovclear [username] \markovfeed [username] [url]
 \rename [newname] \setgame [playing]```'''
 
 
