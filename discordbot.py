@@ -111,6 +111,11 @@ class Markov():
 
 markov = Markov()
 
+reactions = {}
+if os.path.exists('reactions.json'):
+	with open('reactions.json','r') as f:
+		reactions = json.load(f)
+
 remove_urls = lambda x:re.sub(r'^https?:\/\/.*[\r\n]*', '', x, flags=re.MULTILINE)
 
 HELP_STRING = r'''Acid-Bot Commands```
@@ -278,6 +283,39 @@ async def on_message(message):
 			await client.send_message(message.channel, 'You rolled Heads')
 		elif number == 2:
 			await client.send_message(message.channel, 'You rolled Tails.')
+
+	elif message.content.startswith('\\reactionadd'):
+		name,url = message.content.split(' ')[1:3]
+		if not name in reactions:
+			reactions[name] = []
+
+		reactions[name].append(url)
+
+		with open('reactions.json','w') as f:
+			json.dump(reactions, f)
+
+		await client.send_message(message.channel, '%s has %i responses.' % (name, len(reactions[name])))
+
+	elif message.content.startswith('\\reactiondel'):
+		name = message.content.split(' ')[1]
+		num = int(message.content.split(' ')[2])
+		try:
+			reactions[name].pop(num)
+			
+			with open('reactions.json','w') as f:
+				json.dump(reactions, f)
+		except:
+			pass
+
+	elif message.content.startswith('\\\\'):
+		name = message.content[2:]
+		if name[0] == ' ':
+			name = name[1:]
+		if name in reactions and len(reactions[name]) > 0:
+			idx = random.choice( range(len(reactions[name])) )
+			item = random.choice(reactions[name])
+			await client.send_message(message.channel, '(%i) %s' % (idx,item))
+
 
 @client.event
 async def on_message_edit(before, message):
