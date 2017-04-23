@@ -134,6 +134,10 @@ HELP_STRING = r'''Acid-Bot Commands```
 \markovusers         List users' markov ratings (higher number means better \imitate)
 \markovsave          Save markov data to disk
 
+\reactionadd [name] [url]  Add a new link to the [name] collection
+\reactiondel [name] [num]  Remove item [num] from the [name] collection
+\\[name]                   Random link from [name] collection (TWO backslashes)
+
 Debug (Admin) Commands:
 \markovload \markovclear [username] \markovfeed [username] [url]
 \rename [newname] \setgame [playing]```'''
@@ -301,7 +305,7 @@ async def on_message(message):
 		num = int(message.content.split(' ')[2])
 		try:
 			reactions[name].pop(num)
-			
+
 			with open('reactions.json','w') as f:
 				json.dump(reactions, f)
 		except:
