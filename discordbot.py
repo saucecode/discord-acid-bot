@@ -108,6 +108,7 @@ HELP_STRING = r'''Acid-Bot Commands```
 \define [word]       Lookup the definition of [word]
 \ud [word]           Lookup the urban definition of [word]
 \50/50               You feeling lucky?
+\flip                Flip a coin
 
 \imitate [username] (length) (tts)  Imitate [username] (Markov Chains!).
 \markovusers         List users' markov ratings (higher number means better \imitate)
