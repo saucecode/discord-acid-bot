@@ -135,12 +135,12 @@ HELP_STRING = r'''Acid-Bot Commands```
 \markovsave          Save markov data to disk
 
 \reactionadd [name] [url]  Add a new link to the [name] collection
-\reactiondel [name] [num]  Remove item [num] from the [name] collection (admin)
+\reactions                 Lists all the reaction collections
 \\[name]                   Random link from [name] collection (TWO backslashes)
 
 Debug (Admin) Commands:
 \markovload \markovclear [username] \markovfeed [username] [url]
-\rename [newname] \setgame [playing]```'''
+\rename [newname] \setgame [playing] \reactiondel [name] [num] ```'''
 
 
 @client.event
@@ -289,7 +289,8 @@ async def on_message(message):
 			await client.send_message(message.channel, 'You rolled Tails.')
 
 	elif message.content.startswith('\\reactionadd'):
-		name,url = message.content.split(' ')[1:3]
+		name = message.content.split(' ')[1]
+		url = message.content[len(name) + 1 + 13:]
 		if not name in reactions:
 			reactions[name] = []
 
@@ -317,8 +318,11 @@ async def on_message(message):
 			name = name[1:]
 		if name in reactions and len(reactions[name]) > 0:
 			idx = random.choice( range(len(reactions[name])) )
-			item = random.choice(reactions[name])
+			item = reactions[name][idx]
 			await client.send_message(message.channel, '(%i) %s' % (idx,item))
+
+	elif message.content.startswith('\\reactions'):
+		await client.send_message(message.channel, ', '.join( [x for x in list(reactions.keys()) if len(reactions[x]) > 0] ))
 
 
 @client.event
