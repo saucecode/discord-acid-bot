@@ -135,7 +135,7 @@ HELP_STRING = r'''Acid-Bot Commands```
 \markovsave          Save markov data to disk
 
 \reactionadd [name] [url]  Add a new link to the [name] collection
-\reactiondel [name] [num]  Remove item [num] from the [name] collection
+\reactiondel [name] [num]  Remove item [num] from the [name] collection (admin)
 \\[name]                   Random link from [name] collection (TWO backslashes)
 
 Debug (Admin) Commands:
@@ -300,7 +300,7 @@ async def on_message(message):
 
 		await client.send_message(message.channel, '%s has %i responses.' % (name, len(reactions[name])))
 
-	elif message.content.startswith('\\reactiondel'):
+	elif message.content.startswith('\\reactiondel') and int(message.author.id) in [181227668241383425, 304098431973064705]:
 		name = message.content.split(' ')[1]
 		num = int(message.content.split(' ')[2])
 		try:
