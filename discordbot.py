@@ -20,22 +20,36 @@ class Markov():
 	def __init__(self):
 		self.users = {}
 		self.users_incomplete = {}
+		self.last_speaker = ''
 		if os.path.exists('markov.pickle'):
 			self.load()
 
-	def add_words(self, userid, words):
+	def buffer_words(self, userid, words):
+		if not userid in self.users:
+			self.users[userid] = {}
+
+		if not userid in self.users_incomplete:
+			self.users_incomplete[userid] = []
+
+		sterile = re.sub(' +',' ',re.sub(r'[^a-zA-Z0-9\ ]', '', words.replace('\r','').replace('\n',' ').replace('\t', ' ')).strip().lower())
+		self.users_incomplete[userid].extend(sterile.split(' '))
+
+	def add_words(self, userid):
+		if not userid in self.users:
+			self.users[userid] = {}
+
+		if not userid in self.users_incomplete:
+			self.users_incomplete[userid] = []
+
+
+		words = ' '.join(self.users_incomplete[userid])
+
 		if '. ' in words:
 			for sentence in words.split('. '):
 				self.add_words(userid, sentence)
 			return
 
 		sterile = re.sub(' +',' ',re.sub(r'[^a-zA-Z0-9\ ]', '', words.replace('\r','').replace('\n',' ').replace('\t', ' ')).strip().lower())
-
-		if not userid in self.users:
-			self.users[userid] = {}
-
-		if not userid in self.users_incomplete:
-			self.users_incomplete[userid] = []
 
 		if len(sterile.split(' ')) < 3:
 			self.users_incomplete[userid].extend(sterile.split(' '))
@@ -48,7 +62,8 @@ class Markov():
 				if not triple[:2] in self.users[userid]:
 					self.users[userid][triple[:2]] = []
 
-				self.users[userid][triple[:2]].append(triple[2])
+				if not triple[2] in self.users[userid][triple[:2]]:
+					self.users[userid][triple[:2]].append(triple[2])
 
 	def get_triples(self, words):
 		words_split = words.split(' ')
@@ -134,8 +149,15 @@ async def on_message(message):
 	sql.commit()
 
 	if not message.content.startswith('\\') and not message.author.id == client.user.id:
-		markov.add_words(message.author.name, remove_urls(message.content))
-		markov.add_words(client.user.name, remove_urls(message.content))
+		# buffer words to the users
+		markov.buffer_words(message.author.name, remove_urls(message.content))
+		markov.buffer_words(client.user.name, remove_urls(message.content))
+
+		if message.author.name != markov.last_speaker:
+			markov.add_words(markov.last_speaker)
+
+		markov.last_speaker = message.author.name
+
 
 	if message.content.startswith('\\rr'):
 		subreddit = message.content.split(' ')[1]
@@ -234,7 +256,8 @@ async def on_message(message):
 		if not 'Content-Type' in resp.headers or not 'text/plain' in resp.headers['Content-Type']:
 			await client.send_message(message.channel, 'Not a plaintext file - cannot read!')
 		else:
-			markov.add_words(username, remove_urls(resp.text))
+			markov.buffer_words(username, remove_urls(resp.text))
+			markov.add_words(username)
 			await client.send_message(message.channel, 'Added to %s with new score: %i' % (username, len(markov.users[username])) )
 
 	elif message.content.startswith('\\50/50'):
