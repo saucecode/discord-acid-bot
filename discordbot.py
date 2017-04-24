@@ -8,6 +8,8 @@ import json
 import pickle
 import os
 
+discord.opus.load_opus('libopus.so.0')
+
 import postfix
 import dictionarycom as dictionary
 from sailortalk import sailor_word
@@ -15,6 +17,14 @@ from sailortalk import sailor_word
 client = discord.Client()
 sql = sqlite3.connect('logs.db')
 sql_c = sql.cursor()
+
+class VoiceWrapper():
+	def __init__(self):
+		self.voice = None
+		self.is_ready = True
+
+	def after(self):
+		self.is_ready = True
 
 class Markov():
 	def __init__(self):
@@ -114,6 +124,7 @@ class Markov():
 
 
 markov = Markov()
+voice = VoiceWrapper()
 
 reactions = {}
 if os.path.exists('reactions.json'):
@@ -309,6 +320,28 @@ async def do_help(message):
 async def flip_coin(message):
 	await client.send_message(message.channel, 'You rolled ' + random.choice( ['Heads', 'Tails.'] ))
 
+async def voice_request(message):
+	if not voice.voice:
+		voice.voice = await client.join_voice_channel( discord.utils.get(message.server.channels, type=discord.ChannelType.voice) )
+	else:
+		await voice.voice.disconnect()
+		voice.voice = None
+
+async def voice_say(message):
+	if voice.is_ready:
+		voice.is_ready = False
+
+		quote = message.content[5:]
+		with open('voicetmp','w') as f:
+			f.write(quote)
+
+		os.system('espeak -f voicetmp -ven-us+f4 -p 99 -s240 -w voice.wav')
+
+		voice.player = voice.voice.create_ffmpeg_player('voice.wav', after=voice.after)
+		voice.player.start()
+
+
+
 commander = {
 	'help':     {'run': do_help},
 	'ping':     {'run': pong},
@@ -335,7 +368,10 @@ commander = {
 	'\\':            {'run': reaction_do},
 
 	'setgame':       {'run': set_game, 'perms':[181227668241383425]},
-	'rename':        {'run': rename_bot, 'perms':[181227668241383425]}
+	'rename':        {'run': rename_bot, 'perms':[181227668241383425]},
+
+	'voice':         {'run': voice_request},
+	'tts':           {'run': voice_say}
 }
 
 
