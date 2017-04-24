@@ -31,7 +31,11 @@ class Markov():
 		if not userid in self.users_incomplete:
 			self.users_incomplete[userid] = []
 
-		sterile = re.sub(' +',' ',re.sub(r'[^a-zA-Z0-9\ ]', '', words.replace('\r','').replace('\n',' ').replace('\t', ' ')).strip().lower())
+		sterile = re.sub(r'[^a-zA-Z0-9\ ]', '', words.replace('\r','').replace('\n',' ').replace('\t', ' ')).strip().lower()
+		sterile = sterile.split(' ')
+
+		sterile = re.sub(' +',' ', ' '.join( [x for x in sterile if not re.findall('[0-9]{14}.$', x)] )) # remove mentions and emotes
+
 		self.users_incomplete[userid].extend(sterile.split(' '))
 
 	def add_words(self, userid):
