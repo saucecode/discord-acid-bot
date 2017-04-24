@@ -356,6 +356,7 @@ async def on_message(message):
 
 		if message.author.name != markov.last_speaker:
 			markov.add_words(markov.last_speaker)
+			markov.add_words(client.user.name)
 
 		markov.last_speaker = message.author.name
 
