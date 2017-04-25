@@ -8,7 +8,7 @@ import json
 import pickle
 import os
 
-discord.opus.load_opus('libopus.so.0')
+from gtts import gTTS
 
 import postfix
 import dictionarycom as dictionary
@@ -22,6 +22,7 @@ class VoiceWrapper():
 	def __init__(self):
 		self.voice = None
 		self.is_ready = True
+		self.lang = 'en-au'
 
 	def after(self):
 		self.is_ready = True
@@ -152,6 +153,10 @@ HELP_STRING = r'''Acid-Bot Commands```
 \reactionadd [name] [url]  Add a new link to the [name] collection
 \reactions                 Lists all the reaction collections
 \\[name]                   Random link from [name] collection (TWO backslashes)
+
+\voice               Connect/disconnect from voice channel
+\tts                 Say something with the tts
+\chlang              Changes the tts language (from https://pastebin.com/QxdGXShe)
 
 Debug (Admin) Commands:
 \markovload \markovclear [username] \markovfeed [username] [url]
@@ -330,16 +335,18 @@ async def voice_request(message):
 async def voice_say(message):
 	if voice.is_ready:
 		voice.is_ready = False
-
-		quote = message.content[5:]
-		with open('voicetmp','w') as f:
-			f.write(quote)
-
-		os.system('espeak -f voicetmp -ven-us+f4 -p 99 -s240 -w voice.wav')
-
+		tts = gTTS(message.content[5:], lang=voice.lang)
+		tts.save('voice.wav')
 		voice.player = voice.voice.create_ffmpeg_player('voice.wav', after=voice.after)
 		voice.player.start()
 
+async def change_voice_lang(message):
+	lang = message.content.split(' ')[1]
+	if lang in gTTS.LANGUAGES:
+		voice.lang = lang
+		await client.send_message(message.channel, 'Selected %s, %s' % (lang, gTTS.LANGUAGES[lang]))
+	else:
+		await client.send_message(message.channel, 'Not a language, %s' % sailor_word())
 
 
 commander = {
@@ -371,6 +378,7 @@ commander = {
 	'rename':        {'run': rename_bot, 'perms':[181227668241383425]},
 
 	'voice':         {'run': voice_request},
+	'chlang':        {'run': change_voice_lang},
 	'tts':           {'run': voice_say}
 }
 
@@ -400,13 +408,28 @@ async def on_message(message):
 
 		markov.last_speaker = message.author.name
 
+	command_was_executed = False
 
 	if message.content.startswith('\\') and len(message.content) > 1:
 		command_candidates = sorted([x.group() for x in [re.match(opt.replace('\\', '\\\\'), message.content[1:]) for opt in list(commander.keys())] if x], key=lambda x:len(x), reverse=True)
 		if command_candidates:
 			command = commander[command_candidates[0]]
 			if not 'perms' in command or int(message.author.id) in command['perms']:
+				command_was_executed = True
 				await command['run'](message)
+
+
+	# regular message processing
+
+	# complain when someone tries to use \\ but only uses one backslash
+	if message.content.startswith('\\'):
+		if not command_was_executed and message.content[1:] in [x for x in list(reactions.keys()) if len(reactions[x]) > 0]:
+			await client.send_message(message.channel, 'It\'s two backslashes, %s' % sailor_word())
+
+	# complain when someone uses / insteand of \ to call a command
+	if message.content.startswith('/'):
+		if message.content[1:].split(' ')[0] in commander.keys():
+			await client.send_message(message.channel, 'It\'s a backslash, %s' % sailor_word())
 
 
 @client.event
