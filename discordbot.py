@@ -8,6 +8,8 @@ import json
 import pickle
 import os
 
+discord.opus.load_opus('libopus.so.0')
+
 from gtts import gTTS
 
 import postfix
