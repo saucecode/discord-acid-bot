@@ -318,7 +318,7 @@ async def play_5050(message):
 	titles,url = random.choice(urls)
 	await client.send_message(message.channel, '`%s` or...' % titles.split('|')[0].replace('[50/50] ','') )
 	await client.send_message(message.channel, '`%s`' % titles.split('|')[1] )
-	await asyncio.sleep(7)
+	await asyncio.sleep(5)
 	await client.send_message(message.channel, url)
 
 async def do_help(message):
@@ -330,11 +330,15 @@ async def flip_coin(message):
 async def voice_request(message):
 	if not voice.voice:
 		voice.voice = await client.join_voice_channel( discord.utils.get(message.server.channels, type=discord.ChannelType.voice) )
+		voice.is_ready = True
 	else:
 		await voice.voice.disconnect()
 		voice.voice = None
 
 async def voice_say(message):
+	if not voice.voice:
+		await client.send_message(message.channel, '\\voice first, %s' % sailor_word())
+		return
 	if voice.is_ready:
 		voice.is_ready = False
 		tts = gTTS(message.content[5:], lang=voice.lang)
@@ -343,6 +347,9 @@ async def voice_say(message):
 		voice.player.start()
 
 async def change_voice_lang(message):
+	if not ' ' in message.content:
+		await client.send_message(message.channel, 'https://pastebin.com/QxdGXShe')
+		return
 	lang = message.content.split(' ')[1]
 	if lang in gTTS.LANGUAGES:
 		voice.lang = lang
