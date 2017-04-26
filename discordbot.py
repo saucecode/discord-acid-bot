@@ -337,7 +337,7 @@ async def voice_request(message):
 
 async def voice_say(message):
 	if not voice.voice:
-		await client.send_message(message.channel, '\\voice first, %s' % sailor_word())
+		await client.send_message(message.channel, 'Run \\voice first, %s' % sailor_word())
 		return
 	if voice.is_ready:
 		voice.is_ready = False
@@ -419,7 +419,7 @@ async def on_message(message):
 
 	command_was_executed = False
 
-	if message.content.startswith('\\') and len(message.content) > 1:
+	if message.content.startswith('\\') and len(message.content) > 1 and message.author.id != client.user.id:
 		command_candidates = sorted([x.group() for x in [re.match(opt.replace('\\', '\\\\'), message.content[1:]) for opt in list(commander.keys())] if x], key=lambda x:len(x), reverse=True)
 		if command_candidates:
 			command = commander[command_candidates[0]]
