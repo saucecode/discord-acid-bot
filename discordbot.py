@@ -8,6 +8,8 @@ import json
 import pickle
 import os
 
+from functools import reduce
+
 discord.opus.load_opus('libopus.so.0')
 
 from gtts import gTTS
@@ -28,6 +30,108 @@ class VoiceWrapper():
 
 	def after(self):
 		self.is_ready = True
+
+class MathRunner():
+	def __init__(self):
+		self.problems = {
+			'addition': self.addition_problem,
+			'subtraction': self.subtraction_problem,
+			'multiplication': self.multiplication_problem,
+			'surd': self.surd_problem
+		}
+
+		self.active_channel = None
+		self.active = False
+
+		self.scores = {} # username: score
+		self.last_score = {} # username: score
+
+		if os.path.exists('mathscores.json'):
+			with open('mathscores.json','r') as f:
+				self.scores, self.last_score = json.load(f)
+
+	async def pose_question(self, message):
+		self.active_channel = message.channel
+		self.active = True
+
+		s,ans = self.problems[ random.choice( list(self.problems.keys()) ) ]()
+		self.active_answer = ans
+		await client.send_message(message.channel, s)
+
+	async def pose_questionset(self, message):
+		self.active_channel = message.channel
+		self.active = True
+
+		# list of problem_string, ans pairs
+		problems = [self.problems[ random.choice( list(self.problems.keys()) ) ]() for x in range(10)]
+		self.answerset = [x[1] for x in problems]
+
+		# print question set
+		out = '\n'.join([ x[0] for x in problems])
+		await client.send_message(message.channel, '```%s```' % out)
+
+	def addition_problem(self):
+		a,b = random.randint(10, 120), random.randint(10, 120)
+		ans = a + b
+		problem_string = '%i + %i =' % (a,b)
+		return problem_string, ans
+
+	def subtraction_problem(self):
+		a,b = random.randint(-70, 120), random.randint(10, 70)
+		ans = a - b
+		problem_string = '%i - %i =' % (a,b)
+		return problem_string, ans
+
+	def multiplication_problem(self):
+		a,b = random.randint(-15,15), random.randint(2,15)
+		ans = a * b
+		problem_string = '%i * %i =' % (a,b)
+		return problem_string, ans
+
+	def surd_problem(self):
+		path = random.choice( [0,1] )
+		if path == 0:
+			ans = random.randint(2,12)
+			problem_string = 'sqrt(%i)' % ans**2
+
+			return problem_string, ans
+
+		elif path == 1:
+			n = random.randint(2,16)
+			under_root = random.randint(2,16)
+			problem_string = '%isqrt(%i)' % (n,under_root**2)
+			ans = n * under_root
+
+			return problem_string, ans
+
+		# TODO : add a composite surd problem
+
+	async def answer_query(self, message):
+		if not self.active: return
+		if not message.channel == self.active_channel: return
+
+		submitted_answers = [ int(x) for x in message.content.split(' ')[1:] ]
+
+		if not len(self.answerset) == len(submitted_answers):
+			await client.send_message(message.channel, 'Incomplete number of answers. Reenter them again.')
+
+		correct_answers = len( [x for x,y in zip(self.answerset, submitted_answers) if x == y] )
+
+		if not message.author.name in self.scores:
+			self.scores[message.author.name] = 0
+
+		self.scores[message.author.name] += correct_answers
+		self.last_score[message.author.name] = correct_answers
+
+		await client.send_message(message.channel, 'You got: %i/%i' % (correct_answers, len(self.answerset)) )
+
+		self.active = False
+
+	async def showscores(self, message):
+		with open('mathscores.json','w') as f:
+			json.dump([self.scores, self.last_score], f)
+
+		await client.send_message(message.channel, ', '.join( ['%s (%i)' % (x, self.scores[x]) for x in list(self.scores.keys())] ))
 
 class Markov():
 	def __init__(self):
@@ -128,6 +232,7 @@ class Markov():
 
 markov = Markov()
 voice = VoiceWrapper()
+mathgame = MathRunner()
 
 reactions = {}
 if os.path.exists('reactions.json'):
@@ -159,6 +264,10 @@ HELP_STRING = r'''Acid-Bot Commands```
 \voice               Connect/disconnect from voice channel
 \tts                 Say something with the tts
 \chlang              Changes the tts language (from https://pastebin.com/QxdGXShe)
+
+\scores                List math scores
+\problems              Start a short 10 question basic facts test
+\ans [ans1] [ans2] ... Answer the basic facts test
 
 Debug (Admin) Commands:
 \markovload \markovclear [username] \markovfeed [username] [url]
@@ -388,7 +497,11 @@ commander = {
 
 	'voice':         {'run': voice_request},
 	'chlang':        {'run': change_voice_lang},
-	'tts':           {'run': voice_say}
+	'tts':           {'run': voice_say},
+
+	'problems':      {'run': mathgame.pose_questionset},
+	'ans':           {'run': mathgame.answer_query},
+	'scores':        {'run': mathgame.showscores}
 }
 
 
