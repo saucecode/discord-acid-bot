@@ -488,7 +488,7 @@ commander = {
 	'markovfeed':    {'run': markov_feed, 'perms':[181227668241383425, 304098431973064705]},
 
 	'reactionadd':   {'run': reaction_add},
-	'reactiondel':   {'run': reaction_del, 'perms':[181227668241383425, 304098431973064705]},
+	'reactiondel':   {'run': reaction_del, 'perms':[181227668241383425, 304098431973064705, 182411730435964928]},
 	'reactions':     {'run': reaction_list},
 	'\\':            {'run': reaction_do},
 
