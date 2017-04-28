@@ -414,10 +414,12 @@ async def reaction_del(message):
 	name = message.content.split(' ')[1]
 	num = int(message.content.split(' ')[2])
 	try:
-		reactions[name].pop(num)
+		marry_poppin = reactions[name].pop(num)
 
 		with open('reactions.json','w') as f:
 			json.dump(reactions, f)
+
+		await client.send_message(message.channel, 'Deleted reaction: ```%s```' % marry_poppin)
 	except:
 		pass
 
