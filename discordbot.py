@@ -408,7 +408,7 @@ async def reaction_do(message):
 		await client.send_message(message.channel, '(%i) %s' % (idx,item))
 
 async def reaction_list(message):
-	await client.send_message(message.channel, ', '.join( [x for x in list(reactions.keys()) if len(reactions[x]) > 0] ))
+	await client.send_message(message.channel, ', '.join( sorted([x for x in list(reactions.keys()) if len(reactions[x]) > 0]) ))
 
 async def reaction_del(message):
 	name = message.content.split(' ')[1]
