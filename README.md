@@ -46,7 +46,7 @@ TTS feature is supplied using Google Translate's TTS API (Note: Official Discord
 ### Additional features/notes
 
  - The bot logs all messages, edits, and deletions into an sqlite3 database `logs.db`. This is to counter censorship.
-The bot saves all reactions to a `reactions.json`. This file can be edited directly, but the bot must be restarted to take the changes.
+ - The bot saves all reactions to a `reactions.json`. This file can be edited directly, but the bot must be restarted to take the changes.
  - Word-pair data for the markov bot is stored in `markov.pickle`. This data is **not** saved unless the `\markovsave` command is run.
  - Math-quiz score data is storred in `mathscores.json`.
  - The `[url]` supplied to `\markovfeed` must point to a resource with `Content-Type: text/plain`.
