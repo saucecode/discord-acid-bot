@@ -18,6 +18,7 @@ On start-up, the Discord API token must be read from file `secrettoken` in the s
 	\ud [word]           Lookup the urban definition of [word]
 	\50/50               You feeling lucky?
 	\flip                Flip a coin
+	\tell [name] [msg]   Send [msg] to [name] next time the bot sees them. [name] can be a @mention or a username.
 
 	\imitate [username] (length) (tts)  Imitate [username] (Markov Chains!).
 	\markovusers         List users' markov ratings (higher number means better \imitate)
@@ -42,6 +43,8 @@ On start-up, the Discord API token must be read from file `secrettoken` in the s
 Everything is functional. Improvements are needed on the math-quiz commands and the markov bot imitation fails to produce interesting output.
 
 TTS feature is supplied using Google Translate's TTS API (Note: Official Discord Bot API does not let bots listen to the chat).
+
+`\tell` will keep a message for a person, and send it next time that person sends a message on a channel. The messages are stored in `tells.json`.
 
 ### Additional features/notes
 

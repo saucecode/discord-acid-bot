@@ -7,6 +7,7 @@ import re
 import json
 import pickle
 import os
+import time
 
 from functools import reduce
 
@@ -239,6 +240,15 @@ if os.path.exists('reactions.json'):
 	with open('reactions.json','r') as f:
 		reactions = json.load(f)
 
+tells = {}
+if os.path.exists('tells.json'):
+	with open('tells.json','r') as f:
+		tells = json.load(f)
+
+def save_tells():
+	with open('tells.json','w') as f:
+		json.dump(tells, f)
+
 remove_urls = lambda x:re.sub(r'^https?:\/\/.*[\r\n]*', '', x, flags=re.MULTILINE)
 
 HELP_STRING = r'''Acid-Bot Commands```
@@ -252,6 +262,7 @@ HELP_STRING = r'''Acid-Bot Commands```
 \ud [word]           Lookup the urban definition of [word]
 \50/50               You feeling lucky?
 \flip                Flip a coin
+\tell @[name] [msg]   Send [msg] to @[name] next time the bot sees them.
 
 \imitate [username] (length) (tts)  Imitate [username] (Markov Chains!).
 \markovusers         List users' markov ratings (higher number means better \imitate)
@@ -468,6 +479,23 @@ async def change_voice_lang(message):
 	else:
 		await client.send_message(message.channel, 'Not a language, %s' % sailor_word())
 
+async def do_tell(message):
+	target = message.content.split(' ')[1]
+	thing_to_tell = message.content[len('\\tell ') + len(target) + 1:]
+
+	if re.match('<@[0-9]+>', target):
+		member = discord.utils.get(message.server.members, id=target[2:-1])
+	else:
+		member = discord.utils.find(lambda m: target.lower() in m.name.lower() or target.lower() in m.display_name.lower(), message.channel.server.members)
+
+	if not member.id in tells:
+		tells[member.id] = []
+
+	tells[member.id].append({'sent_at':time.time(), 'message':thing_to_tell, 'senderid':message.author.id})
+	save_tells()
+
+	await client.send_message(message.channel, 'Ok, I\'ll tell %s that next time I see them.' % member.display_name)
+
 
 commander = {
 	'help':     {'run': do_help},
@@ -482,6 +510,7 @@ commander = {
 	'imitate':  {'run': do_imitate},
 	'50/50':    {'run': play_5050},
 	'flip':     {'run': flip_coin},
+	'tell':     {'run': do_tell},
 
 	'markovsave':    {'run': markov_save},
 	'markovload':    {'run': markov_load, 'perms':[181227668241383425]},
@@ -544,6 +573,13 @@ async def on_message(message):
 
 
 	# regular message processing
+
+	# check if there is a tell for the sender
+	if message.author.id in tells:
+		for item in tells[message.author.id]:
+			await client.send_message(message.channel, '<@%s> %s (from <@%s>)' % (message.author.id, item['message'], item['senderid']))
+		del tells[message.author.id]
+		save_tells()
 
 	# complain when someone tries to use \\ but only uses one backslash
 	if message.content.startswith('\\'):
