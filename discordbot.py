@@ -481,10 +481,13 @@ async def change_voice_lang(message):
 
 async def do_tell(message):
 	target = message.content.split(' ')[1]
+	print(target)
 	thing_to_tell = message.content[len('\\tell ') + len(target) + 1:]
 
-	if re.match('<@[0-9]+>', target):
-		member = discord.utils.get(message.server.members, id=target[2:-1])
+	mat = re.match('<@.[0-9]+>', target)
+
+	if mat:
+		member = discord.utils.get(message.server.members, id=target[2:-1].replace('!',''))
 	else:
 		member = discord.utils.find(lambda m: target.lower() in m.name.lower() or target.lower() in m.display_name.lower(), message.channel.server.members)
 
