@@ -538,6 +538,7 @@ commander = {
 	'scores':        {'run': mathgame.showscores}
 }
 
+banned_ids = ['298068460473286657']
 
 @client.event
 async def on_ready():
@@ -572,7 +573,9 @@ async def on_message(message):
 			command = commander[command_candidates[0]]
 			if not 'perms' in command or int(message.author.id) in command['perms']:
 				command_was_executed = True
-				await command['run'](message)
+
+				if not message.author.id in banned_ids:
+					await command['run'](message)
 
 
 	# regular message processing
