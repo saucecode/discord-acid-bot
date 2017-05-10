@@ -330,7 +330,7 @@ async def urban_define_word(message):
 	await client.send_message(message.channel, '```examples: %s```' % definition['example'])
 
 async def whoami(message):
-	await whois_user(message.channel, message.author)
+	await whois_user(message.channel, message.author, message.channel.server.id)
 
 async def whois(message):
 	target = message.content[7:]
@@ -340,8 +340,8 @@ async def whois(message):
 	else:
 		await client.send_message(message.channel, 'I can\'t find a %s' % (target,))
 
-async def whois_user(chan, user):
-	await client.send_message(chan, 'Name: %s; Display Name: %s; Discriminator: %s; ID: %s' % (user.name, user.display_name, user.discriminator, user.id))
+async def whois_user(chan, user, serverid='N/a'):
+	await client.send_message(chan, 'Name: %s; Display Name: %s; Discriminator: %s; ID: %s; Server ID %s' % (user.name, user.display_name, user.discriminator, user.id, serverid))
 
 async def do_imitate(message):
 	name = message.content.split(' ')[1]
@@ -539,6 +539,7 @@ commander = {
 }
 
 banned_ids = ['298068460473286657']
+banned_counter = [0]
 
 @client.event
 async def on_ready():
@@ -576,6 +577,12 @@ async def on_message(message):
 
 				if not message.author.id in banned_ids:
 					await command['run'](message)
+
+				else:
+					banned_counter[0] += 1
+					if banned_counter[0] > 10:
+						banned_counter[0] = 0
+						await client.send_message(message.channel, 'Stop it.')
 
 
 	# regular message processing
