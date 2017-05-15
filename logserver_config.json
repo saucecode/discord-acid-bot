@@ -1,0 +1,1 @@
+{"external_server_address":"http://cat.goes.rawr.nz:3131", "internal_server_address":"http://localhost:3131", "token_generator_password":"defaultpassword", "token_lifetime":3600, "logserver_port":3131}
