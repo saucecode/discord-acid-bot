@@ -280,6 +280,8 @@ HELP_STRING = r'''Acid-Bot Commands```
 \problems              Start a short 10 question basic facts test
 \ans [ans1] [ans2] ... Answer the basic facts test
 
+\logs               Generates a link to the logs.
+
 Debug (Admin) Commands:
 \markovload \markovclear [username] \markovfeed [username] [url]
 \rename [newname] \setgame [playing] \reactiondel [name] [num] ```'''
@@ -499,6 +501,13 @@ async def do_tell(message):
 
 	await client.send_message(message.channel, 'Ok, I\'ll tell %s that next time I see them.' % member.display_name)
 
+async def view_logs(message):
+	try:
+		token = requests.get(logs_url[1] + '/gentoken?password=%s' % logs_password[0]).text
+		await client.send_message(message.channel, 'Logs URL: %s/logs/?t=%s' % (logs_url[0], token))
+	except:
+		await client.send_message(message.channel, 'Logs server is non-responsive.')
+
 
 commander = {
 	'help':     {'run': do_help},
@@ -535,11 +544,17 @@ commander = {
 
 	'problems':      {'run': mathgame.pose_questionset},
 	'ans':           {'run': mathgame.answer_query},
-	'scores':        {'run': mathgame.showscores}
+	'scores':        {'run': mathgame.showscores},
+
+	'logs':          {'run': view_logs}
 }
 
 banned_ids = ['298068460473286657']
 banned_counter = [0]
+with open('logserver_config.json','r') as f:
+	data = json.load(f)
+	logs_url = [data['external_server_address'], data['internal_server_address']]
+	logs_password = [data['token_generator_password']]
 
 @client.event
 async def on_ready():
