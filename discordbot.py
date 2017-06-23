@@ -18,6 +18,7 @@ from gtts import gTTS
 import postfix
 import dictionarycom as dictionary
 from sailortalk import sailor_word
+from markov import Markov
 
 client = discord.Client()
 sql = sqlite3.connect('logs.db')
@@ -133,102 +134,6 @@ class MathRunner():
 			json.dump([self.scores, self.last_score], f)
 
 		await client.send_message(message.channel, ', '.join( ['%s (%i)' % (x, self.scores[x]) for x in list(self.scores.keys())] ))
-
-class Markov():
-	def __init__(self):
-		self.users = {}
-		self.users_incomplete = {}
-		self.last_speaker = ''
-		if os.path.exists('markov.pickle'):
-			self.load()
-
-	def buffer_words(self, userid, words):
-		if not userid in self.users:
-			self.users[userid] = {}
-
-		if not userid in self.users_incomplete:
-			self.users_incomplete[userid] = []
-
-		sterile = re.sub(r'[^a-zA-Z0-9\ ]', '', words.replace('\r','').replace('\n',' ').replace('\t', ' ')).strip().lower()
-		sterile = sterile.split(' ')
-
-		sterile = re.sub(' +',' ', ' '.join( [x for x in sterile if not re.findall('[0-9]{14}.$', x)] )) # remove mentions and emotes
-
-		self.users_incomplete[userid].extend(sterile.split(' '))
-
-	def add_words(self, userid):
-		if not userid in self.users:
-			self.users[userid] = {}
-
-		if not userid in self.users_incomplete:
-			self.users_incomplete[userid] = []
-
-
-		words = ' '.join(self.users_incomplete[userid])
-
-		if '. ' in words:
-			for sentence in words.split('. '):
-				self.add_words(userid, sentence)
-			return
-
-		sterile = re.sub(' +',' ',re.sub(r'[^a-zA-Z0-9\ ]', '', words.replace('\r','').replace('\n',' ').replace('\t', ' ')).strip().lower())
-
-		if len(sterile.split(' ')) < 3:
-			self.users_incomplete[userid].extend(sterile.split(' '))
-
-		else:
-			sterile = ' '.join(self.remove_duplicates(self.users_incomplete[userid])) + ' ' + sterile
-			self.users_incomplete[userid].clear()
-
-			for triple in self.get_triples(sterile):
-				if not triple[:2] in self.users[userid]:
-					self.users[userid][triple[:2]] = []
-
-				if not triple[2] in self.users[userid][triple[:2]]:
-					self.users[userid][triple[:2]].append(triple[2])
-
-	def get_triples(self, words):
-		words_split = words.split(' ')
-		triples = []
-		for i in range(len(words_split)):
-			try:
-				tup = (words_split[i], words_split[i+1], words_split[i+2])
-				triples.append(tup)
-			except:
-				return triples
-		return triples
-
-	def remove_duplicates(self, seq):
-		seen = set()
-		seen_add = seen.add
-		return [x for x in seq if not (x in seen or seen_add(x))]
-
-	def imitate(self, userid, max_length=20):
-		output = []
-
-		key = random.choice(list(self.users[userid].keys()))
-		output.extend(key)
-
-		while len(output) < max_length:
-			if not key in self.users[userid]: break
-
-			options = self.users[userid][key]
-			if len(options) == 0: break
-
-			chosen = random.choice(options)
-
-			key = (key[1], chosen)
-			output.append(chosen)
-
-		return ' '.join(output)
-
-	def save(self):
-		with open('markov.pickle','wb') as f:
-			pickle.dump(self.users, f)
-
-	def load(self):
-		with open('markov.pickle','rb') as f:
-			self.users = pickle.load(f)
 
 
 markov = Markov()
@@ -357,7 +262,7 @@ async def do_imitate(message):
 		pass
 
 	if name in markov.users:
-		await client.send_message(message.channel, '`%s`' % (markov.imitate(name, max_length=max_length),), tts='tts' in opts)
+		await client.send_message(message.channel, '%s' % (markov.imitate(name, max_length=max_length),), tts='tts' in opts)
 
 async def set_game(message):
 	await client.change_presence(game=discord.Game(name=message.content[9:]))
@@ -572,14 +477,15 @@ async def on_message(message):
 
 	if not message.content.startswith('\\') and not message.author.id == client.user.id:
 		# buffer words to the users
-		markov.buffer_words(message.author.name, remove_urls(message.content))
+		'''markov.buffer_words(message.author.name, remove_urls(message.content))
 		markov.buffer_words(client.user.name, remove_urls(message.content))
 
 		if message.author.name != markov.last_speaker:
 			markov.add_words(markov.last_speaker)
 			markov.add_words(client.user.name)
 
-		markov.last_speaker = message.author.name
+		markov.last_speaker = message.author.name'''
+		markov.add_line(message.channel.name, message.author.name, message.content)
 
 	command_was_executed = False
 
