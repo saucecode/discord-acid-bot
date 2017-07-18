@@ -211,7 +211,7 @@ async def get_random_top_reddit_image(message):
 	urls = [i['data']['url'] for i in dat['data']['children']] # pull urls from reddit post list
 	imgurs = [url for url in urls if any( domain in url for domain in ['imgur.com', 'i.redd.it'] )] # filter links for only these domains
 
-	await client.send_message(message.channel, random.choice(imgurs) + ' TOP!')
+	await client.send_message(message.channel, random.choice(imgurs))
 
 async def do_postfix_calculation(message):
 	await client.send_message(message.channel, postfix.outputResult( postfix.doPostfix(message.content[6:]) ))
