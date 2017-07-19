@@ -137,7 +137,7 @@ class MathRunner():
 
 
 markov = Markov()
-voice = VoiceWrapper()
+voice_wrapper = VoiceWrapper()
 mathgame = MathRunner()
 
 reactions = {}
@@ -357,23 +357,33 @@ async def flip_coin(message):
 	await client.send_message(message.channel, 'You rolled ' + random.choice( ['Heads', 'Tails.'] ))
 
 async def voice_request(message):
-	if not voice.voice:
-		voice.voice = await client.join_voice_channel( discord.utils.get(message.server.channels, type=discord.ChannelType.voice) )
-		voice.is_ready = True
+	# Command behaviour: Join the caller's voice channel if in a voice channel.
+	#  Leave the caller's voice channel if already in caller's voice channel.
+	#  Move to the caller's voice channel if already in a different voice channel.
+
+	if not voice_wrapper.voice:
+		if not message.author.voice.voice_channel:
+			await client.send_message(message.channel, 'You must join a voice channel first, %s' % sailor_word())
+		else:
+			voice_wrapper.voice = await client.join_voice_channel( message.author.voice.voice_channel )
+			voice_wrapper.is_ready = True
 	else:
-		await voice.voice.disconnect()
-		voice.voice = None
+		if voice_wrapper.voice.channel == message.author.voice.voice_channel:
+			await voice_wrapper.voice.disconnect()
+			voice_wrapper.voice = None
+		else:
+			await voice_wrapper.voice.move_to( message.author.voice.voice_channel )
 
 async def voice_say(message):
-	if not voice.voice:
+	if not voice_wrapper.voice:
 		await client.send_message(message.channel, 'Run \\voice first, %s' % sailor_word())
 		return
-	if voice.is_ready:
-		voice.is_ready = False
-		tts = gTTS(message.content[5:], lang=voice.lang)
+	if voice_wrapper.is_ready:
+		voice_wrapper.is_ready = False
+		tts = gTTS(message.content[5:], lang=voice_wrapper.lang)
 		tts.save('voice.wav')
-		voice.player = voice.voice.create_ffmpeg_player('voice.wav', after=voice.after)
-		voice.player.start()
+		voice_wrapper.player = voice_wrapper.voice.create_ffmpeg_player('voice.wav', after=voice_wrapper.after)
+		voice_wrapper.player.start()
 
 async def change_voice_lang(message):
 	if not ' ' in message.content:
@@ -381,7 +391,7 @@ async def change_voice_lang(message):
 		return
 	lang = message.content.split(' ')[1]
 	if lang in gTTS.LANGUAGES:
-		voice.lang = lang
+		voice_wrapper.lang = lang
 		await client.send_message(message.channel, 'Selected %s, %s' % (lang, gTTS.LANGUAGES[lang]))
 	else:
 		await client.send_message(message.channel, 'Not a language, %s' % sailor_word())
