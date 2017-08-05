@@ -8,12 +8,14 @@ import json
 import pickle
 import os
 import time
+import threading
 
 from functools import reduce
 
 discord.opus.load_opus('libopus.so.0')
 
 from gtts import gTTS
+from youtube_dl import YoutubeDL
 
 import postfix
 import dictionarycom as dictionary
@@ -27,11 +29,63 @@ sql_c = sql.cursor()
 class VoiceWrapper():
 	def __init__(self):
 		self.voice = None
+		self.player = None
 		self.is_ready = True
+		self.streaming_media = False
 		self.lang = 'en-au'
+		self.volume = 0.5
+		self.queue = []
 
 	def after(self):
 		self.is_ready = True
+		self.streaming_media = True
+
+	def after_streaming(self):
+		if len(self.queue) > 0: del self.queue[0]
+		self.after()
+
+	async def play_next(self, channel=None):
+		if channel:
+			self.current_channel = channel
+		else:
+			channel = self.current_channel
+
+		query = self.queue[0]
+		ydl = YoutubeDL( {'outtmpl': 'downloaded/%(title)s-%(id)s.%(ext)s', 'format': 'bestaudio/best', 'default_search': 'ytsearch', 'cachedir':'downloaded', 'nopart':'true'} )
+		entries = ydl.extract_info(query, download=False)
+		if 'entries' in entries:
+			entries = entries['entries']
+
+		if len(entries) == 0:
+			await client.send_message(channel, 'Can\'t find anything :L')
+
+		else:
+			entry = entries[0] if type(entries) == list else entries
+			await client.send_message(channel, 'Getting audio...')
+
+			def _download_call(url):
+				ydl.download([url])
+
+			t1 = threading.Thread(target=_download_call, args=(entry['webpage_url'],))
+			t1.start()
+
+			for i in range(75):
+				time.sleep(0.5)
+				if not t1.is_alive(): break
+				try:
+					guess_name = 'downloaded/' + [x for x in os.listdir('downloaded/') if entry['id'] in x][0]
+					if os.path.exists( guess_name ):
+						if os.stat(guess_name).st_size > 1024 * 1024:
+							break
+				except IndexError:
+					pass
+
+			fname = 'downloaded/' + [x for x in os.listdir('downloaded/') if entry['id'] in x][0]
+
+			self.player = voice_wrapper.voice.create_ffmpeg_player(fname, after=voice_wrapper.after_streaming)
+			self.player.volume = voice_wrapper.volume
+			self.streaming_media = True
+			self.player.start()
 
 class MathRunner():
 	def __init__(self):
@@ -383,6 +437,7 @@ async def voice_say(message):
 		tts = gTTS(message.content[5:], lang=voice_wrapper.lang)
 		tts.save('voice.wav')
 		voice_wrapper.player = voice_wrapper.voice.create_ffmpeg_player('voice.wav', after=voice_wrapper.after)
+		voice_wrapper.streaming_media = False
 		voice_wrapper.player.start()
 
 async def change_voice_lang(message):
@@ -395,6 +450,49 @@ async def change_voice_lang(message):
 		await client.send_message(message.channel, 'Selected %s, %s' % (lang, gTTS.LANGUAGES[lang]))
 	else:
 		await client.send_message(message.channel, 'Not a language, %s' % sailor_word())
+
+async def voice_play_youtube(message):
+	if not voice_wrapper.voice:
+		await client.send_message(message.channel, 'Run \\voice first, %s' % sailor_word())
+		return
+
+	query = message.content[6:]
+	if len(query) < 3:
+		await client.send_message(message.channel, 'Query is too short.')
+		return
+
+	voice_wrapper.queue.append(query)
+	await client.send_message(message.channel, 'Added to queue.')
+
+	if voice_wrapper.is_ready:
+		voice_wrapper.is_ready = False
+
+		if not voice_wrapper.player or not voice_wrapper.player.is_playing():
+			await voice_wrapper.play_next(message.channel)
+
+async def voice_stop_youtube(message):
+	if voice_wrapper.player.is_playing():
+		voice_wrapper.after_streaming()
+		voice_wrapper.player.stop()
+
+async def voice_volume(message):
+	value = None
+	try:
+		value = int(message.content.split(' ')[1])
+	except:
+		pass
+
+	if not value:
+		await client.send_message(message.channel, 'Usage: \\vol [0-100]. Currently set to: %i' % int(100*voice_wrapper.volume) )
+	else:
+		voice_wrapper.volume = value / 100.0
+		if voice_wrapper.player:
+			voice_wrapper.player.volume = voice_wrapper.volume
+
+		await client.add_reaction(message, '\U0001F44C')
+		# special message for a special guy
+		if random.random() > 0.99:
+			await client.send_message(message.channel, 'Volume set, daddy.')
 
 async def do_tell(message):
 	target = message.content.split(' ')[1]
@@ -456,6 +554,9 @@ commander = {
 	'voice':         {'run': voice_request},
 	'chlang':        {'run': change_voice_lang},
 	'tts':           {'run': voice_say},
+	'play':          {'run': voice_play_youtube},
+	'stop':          {'run': voice_stop_youtube},
+	'vol':           {'run': voice_volume},
 
 	'problems':      {'run': mathgame.pose_questionset},
 	'ans':           {'run': mathgame.answer_query},
@@ -551,5 +652,14 @@ async def on_message_delete(message):
 	sql_c.execute('INSERT INTO logs VALUES (?,?,?,?,?,?,?,?,?)', (message.timestamp.timestamp(), message.channel.name, int(message.author.id), message.author.name, message.author.display_name, int(message.id), 1, 0, str(message.content)))
 	sql.commit()
 
+async def bot_background_task():
+	while not client.is_closed:
+		if voice_wrapper.player:
+			if voice_wrapper.streaming_media and voice_wrapper.player.is_done():
+				await voice_wrapper.play_next()
+
+		await asyncio.sleep(1)
+
 with open('secrettoken', 'r') as f:
+	client.loop.create_task(bot_background_task())
 	client.run(f.read())
