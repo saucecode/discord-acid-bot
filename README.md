@@ -1,7 +1,7 @@
 # Acid-Bot
 My personal Discord chat bot, written in Python 3
 
-`acid-bot` runs on **Python 3.4+** (tested only on 3.5) and requires [gTTS](https://github.com/pndurette/gTTS) (Python TTS library), [discord.py](https://github.com/Rapptz/discord.py/) (Discord Bot API wrapper for Python) and `requests`. It also requires my postfix calculator implementation, but this is included (`postfix.py`).
+`acid-bot` runs on **Python 3.4+** (tested only on 3.5) and requires [gTTS](https://github.com/pndurette/gTTS) (Python TTS library), [discord.py](https://github.com/Rapptz/discord.py/) (Discord Bot API wrapper for Python), [youtube-dl](https://github.com/rg3/youtube-dl) (to play songs in voice chat) and `requests`. It also requires my postfix calculator implementation, which comes included (`postfix.py`).
 
 The `log_server.py` Flask server requires `flask` to be installed. It is a separate program which gives users access to view the logs that the bot keeps.
 
@@ -11,7 +11,6 @@ On start-up, the Discord API token must be read from file `secrettoken` in the s
 
 	\help                This helpful message.
 	\rr [subreddit]      Get a random image from [subreddit]
-	\rrtop [subreddit]   Get a random image from the all time top posts of [subreddit]
 	\calc [query]        Postfix calculator
 	\whoami              User stats
 	\whois [username]    ^ Ditto
@@ -20,7 +19,7 @@ On start-up, the Discord API token must be read from file `secrettoken` in the s
 	\ud [word]           Lookup the urban definition of [word]
 	\50/50               You feeling lucky?
 	\flip                Flip a coin
-	\tell [name] [msg]   Send [msg] to [name] next time the bot sees them. [name] can be a @mention or a username.
+	\tell @[name] [msg]   Send [msg] to @[name] next time the bot sees them.
 
 	\imitate [username] (length) (tts)  Imitate [username] (Markov Chains!).
 	\markovusers         List users' markov ratings (higher number means better \imitate)
@@ -30,13 +29,21 @@ On start-up, the Discord API token must be read from file `secrettoken` in the s
 	\reactions                 Lists all the reaction collections
 	\\[name]                   Random link from [name] collection (TWO backslashes)
 
-	\voice               Connect/disconnect from voice channel
+	\voice               Connect/disconnect from your voice channel
+	\play [URL or title] Plays the audio at [URL] or searches YouTube for [Title].
+						 Supports playing from 1039 websites (http://bit.ly/2d9yknp)
+						 If already playing, adds query to the queue.
+	\skip                Skip current song
+	\stop                Stop playback. Discards queue.
+
 	\tts                 Say something with the tts
 	\chlang              Changes the tts language (from https://pastebin.com/QxdGXShe)
 
 	\scores                List math scores
 	\problems              Start a short 10 question basic facts test
 	\ans [ans1] [ans2] ... Answer the basic facts test
+
+	\logs               Generates a link to the logs.
 
 	Debug (Admin) Commands:
 	\markovload \markovclear [username] \markovfeed [username] [url]
@@ -89,3 +96,5 @@ When a successful GET request is made to `/gentoken` the response body will be, 
  - `\voice` will join/leave the voice channel. It currently joins the first voice channel it finds.
  - `\tts` will send text to Google, and Google will return a wav file saved to `voice.wav`. The bot will use ffmpeg to play the wav file on voice chat. The bot hangs while it downloads from Google, so really long tts texts will cause the bot to time out from Discord.
  - `\logs` will generate a link and token for a user to access the logs that the bot keeps.
+ - `\play` takes either a query or a URL. If it is a URL to a video or audio site, or is a video or audio stream, it will attempt to play, as `youtube-dl` is capable of such things, being magic and all. All songs are downloaded into directory `downloaded/`. This folder should probably exist before starting the bot. If a thing is currently playing, then the query (not the song) is added the the queue. When a new audio query starts downloading, the bot will start playing from it as soon as it can (instead of waiting for the download to finish).
+ - `\vol` Takes a volume for a `\play` stream as a value from 0 to 100. Adjusts the volume on the fly.
