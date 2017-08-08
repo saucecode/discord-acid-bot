@@ -1,9 +1,10 @@
 import random
 
-__firsts =  'shit fuck muffin dumb piss muppet mother goat whore ass pussy cock'.split(' ')
-__seconds = 'cunt bitch tard face fuck stain stick muppet fucker ass face bandit eater'.split(' ')
+__firsts =  'shit fuck muffin dumb piss muppet mother goat whore ass pussy cock fugly swamp cake tart old tasteless'.split(' ')
+__seconds = 'cunt bitch tard face fuck stain stick muppet fucker ass face bandit eater fart lard'.split(' ')
 __singles = [
-	'cuck', 'muppet', 'sex offender', 'cumslut', 'reasonable human being'
+	'cuck', 'muppet', 'sex offender', 'cumslut', 'reasonable human being', 'buffoon', 'ignoramus', 'dense mother fucker',
+	'FOOL!', 'mouth breather', 'imbecile', 'waste of space', 'withered old hag', 'statistician'
 ]
 
 def sailor_word():
