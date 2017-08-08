@@ -38,10 +38,10 @@ class VoiceWrapper():
 
 	def after(self):
 		self.is_ready = True
-		self.streaming_media = True
 
 	def after_streaming(self):
 		if len(self.queue) > 0: del self.queue[0]
+		if len(self.queue) == 0: self.streaming_media = False
 		self.after()
 
 	async def play_next(self, channel=None):
@@ -231,7 +231,13 @@ HELP_STRING = r'''Acid-Bot Commands```
 \reactions                 Lists all the reaction collections
 \\[name]                   Random link from [name] collection (TWO backslashes)
 
-\voice               Connect/disconnect from voice channel
+\voice               Connect/disconnect from your voice channel
+\play [URL or title] Plays the audio at [URL] or searches YouTube for [Title].
+                     Supports playing from 1039 websites (http://bit.ly/2d9yknp)
+					 If already playing, adds query to the queue.
+\skip                Skip current song
+\stop                Stop playback. Discards queue.
+
 \tts                 Say something with the tts
 \chlang              Changes the tts language (from https://pastebin.com/QxdGXShe)
 
@@ -423,6 +429,7 @@ async def voice_request(message):
 			voice_wrapper.is_ready = True
 	else:
 		if voice_wrapper.voice.channel == message.author.voice.voice_channel:
+			voice_wrapper.streaming_media = False
 			await voice_wrapper.voice.disconnect()
 			voice_wrapper.voice = None
 		else:
@@ -472,8 +479,16 @@ async def voice_play_youtube(message):
 
 async def voice_stop_youtube(message):
 	if voice_wrapper.player.is_playing():
-		voice_wrapper.after_streaming()
+		voice_wrapper.queue.clear()
+		voice_wrapper.streaming_media = False
 		voice_wrapper.player.stop()
+
+async def voice_skip_current(message):
+	if voice_wrapper.player.is_playing() and voice_wrapper.streaming_media:
+		if len(voice_wrapper.queue) == 1:
+			await voice_stop_youtube(message)
+		else:
+			voice_wrapper.player.stop()
 
 async def voice_volume(message):
 	value = None
@@ -555,6 +570,7 @@ commander = {
 	'chlang':        {'run': change_voice_lang},
 	'tts':           {'run': voice_say},
 	'play':          {'run': voice_play_youtube},
+	'skip':          {'run': voice_skip_current},
 	'stop':          {'run': voice_stop_youtube},
 	'vol':           {'run': voice_volume},
 
@@ -655,7 +671,7 @@ async def on_message_delete(message):
 async def bot_background_task():
 	while not client.is_closed:
 		if voice_wrapper.player:
-			if voice_wrapper.streaming_media and voice_wrapper.player.is_done():
+			if voice_wrapper.streaming_media and voice_wrapper.player.is_done() and len(voice_wrapper.queue) > 0:
 				await voice_wrapper.play_next()
 
 		await asyncio.sleep(1)
