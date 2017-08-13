@@ -21,6 +21,8 @@ On start-up, the Discord API token must be read from file `secrettoken` in the s
 	\flip                Flip a coin
 	\tell @[name] [msg]   Send [msg] to @[name] next time the bot sees them.
 
+	\remind @[name] [msg] in [time]    Send a reminder to @[name] after [time].
+
 	\imitate [username] (length) (tts)  Imitate [username] (Markov Chains!).
 	\markovusers         List users' markov ratings (higher number means better \imitate)
 	\markovsave          Save markov data to disk
@@ -77,7 +79,7 @@ Next, the `Markov` manager is started. It will load a Python pickle file, `marko
 
 Next, the `VoiceWrapper` is created. It has no settings. After that, `MathRunner` is created. This will load users' math game scores from `mathscores.json` (if it exists).
 
-The reaction list is then loaded from `reactions.json`. The tells (see `\tell`) are loaded from `tells.json`. The banned IDs are hardcoded. IDs in this list cannot execute commands. The settings for the logserver are loaded from `logserver_config.json`. This file MUST exist, even if you do not intend to use the logserver.
+The reaction list is then loaded from `reactions.json`. The tells (see `\tell`) are loaded from `tells.json`. The reminders are loaded from `reminders.json`. The banned IDs are hardcoded. IDs in this list cannot execute commands. The settings for the logserver are loaded from `logserver_config.json`. This file MUST exist, even if you do not intend to use the logserver.
 
 **The log server**
 
@@ -93,6 +95,7 @@ When a successful GET request is made to `/gentoken` the response body will be, 
  - `\ud` makes an API request to Urban Dictionary. See `dictionarycom.py`.
  - `\50/50` makes a request to [reddit.com/r/fiftyfifty](https://reddit.com/r/fiftyfifty) and reformats the title.
  - `\tell` will let you send messages to users. The messages will only be sent the next time they speak.
+ - `\remind` will send messages after a fixed period, and regardless of whether or not the person is online.
  - `\voice` will join/leave the voice channel. It currently joins the first voice channel it finds.
  - `\tts` will send text to Google, and Google will return a wav file saved to `voice.wav`. The bot will use ffmpeg to play the wav file on voice chat. The bot hangs while it downloads from Google, so really long tts texts will cause the bot to time out from Discord.
  - `\logs` will generate a link and token for a user to access the logs that the bot keeps.
