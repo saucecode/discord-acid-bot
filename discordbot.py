@@ -61,7 +61,7 @@ class VoiceWrapper():
 
 		else:
 			entry = entries[0] if type(entries) == list else entries
-			await client.send_message(channel, 'Getting audio...')
+			await client.send_message(channel, 'Getting audio for: **%s** ' % (entry['title']))
 
 			def _download_call(url):
 				ydl.download([url])
@@ -204,9 +204,18 @@ if os.path.exists('tells.json'):
 	with open('tells.json','r') as f:
 		tells = json.load(f)
 
+reminders = []
+if os.path.exists('reminders.json'):
+	with open('reminders.json','r') as f:
+		reminders = json.load(f)
+
 def save_tells():
 	with open('tells.json','w') as f:
 		json.dump(tells, f)
+
+def save_reminders():
+	with open('reminders.json','w') as f:
+		json.dump(reminders, f)
 
 remove_urls = lambda x:re.sub(r'^https?:\/\/.*[\r\n]*', '', x, flags=re.MULTILINE)
 
@@ -222,6 +231,8 @@ HELP_STRING = r'''Acid-Bot Commands```
 \50/50               You feeling lucky?
 \flip                Flip a coin
 \tell @[name] [msg]   Send [msg] to @[name] next time the bot sees them.
+
+\remind @[name] [msg] in [time]    Send a reminder to @[name] after [time].
 
 \imitate [username] (length) (tts)  Imitate [username] (Markov Chains!).
 \markovusers         List users' markov ratings (higher number means better \imitate)
@@ -529,6 +540,113 @@ async def do_tell(message):
 
 	await client.send_message(message.channel, 'Ok, I\'ll tell %s that next time I see them.' % member.display_name)
 
+async def do_remind(message):
+	# \remind [me|@username] [optional: to] [take out the trash] [last:in] [an hour|a minute|a day|a month|n minute/minutes|n second/seconds|n hour/hours]
+	subject = message.content.split(' ')[1]
+
+	# determine subject:
+	if subject.lower() == 'me':
+		subject = message.author
+	else:
+		mat = re.match('<@.[0-9]+>', subject)
+
+		if mat:
+			subject = discord.utils.get(message.server.members, id=subject[2:-1].replace('!',''))
+		else:
+			subject = discord.utils.find(lambda m: subject.lower() in m.name.lower() or subject.lower() in m.display_name.lower(), message.channel.server.members)
+
+	if type(subject) == str:
+		await client.send_message(message.channel, 'I don\'t know who that is...')
+		return
+
+	# determine time
+	loc = message.content.rfind(' in ')
+	time_string = message.content[loc+4:]
+	time_seconds = translate_time_string(time_string)
+
+	if time_seconds < 0:
+		await client.send_message(message.channel, 'Failed to translate time.')
+		return
+	#else:
+	#	await client.send_message(message.channel, 'Translated time to %.2f seconds / %.2f minutes / %.2f hours / %.2f days' % (time_seconds, time_seconds / 60, time_seconds / 60 / 60, time_seconds / 60 / 60 / 24))
+
+	reminder_content = ' '.join(message.content.split(' ')[2:-3])
+	if reminder_content[:3] == 'to ': reminder_content = reminder_content[3:]
+
+	reminder = {'to': subject.id, 'when':time.time() + time_seconds, 'message': reminder_content, 'channel': message.channel.id}
+	added = False
+
+	if len(reminders) == 0:
+		reminders.append(reminder)
+		added = True
+	else:
+		for key,value in enumerate(reminders):
+			if value['when'] >= reminder['when']:
+				reminders[key:key] = [reminder]
+				added = True
+				break
+
+	if not added:
+		reminders.append(reminder)
+		added = True
+
+	save_reminders()
+
+	await client.send_message( message.channel, 'Ok, I\'ll remind %s in %s' % ('you' if subject == message.author else 'them', humanreadable_time(time_seconds)) )
+
+def humanreadable_time(t):
+	out = []
+	t = [t]
+
+	def shortcut(o,t,s,i):
+		if t[0] / i >= 1:
+			o.append('%i %s' % (int(t[0] / i), s))
+			while t[0] >= i:
+				t[0] -= i
+
+	shortcut(out, t, 'months', 60*60*24*30)
+	shortcut(out, t, 'days', 60*60*24)
+	shortcut(out, t, 'hours', 60*60)
+	shortcut(out, t, 'minutes', 60)
+	shortcut(out, t, 'seconds', 1)
+
+	if len(out) == 1:
+		return out[0]
+
+	out[-1] = 'and ' + out[-1]
+
+	return ', '.join(out)
+
+
+def translate_time_string(time_string):
+	seconds = -1
+	multiplier = 1
+
+	units = {
+		'second': 1,
+		'minute': 60,
+		'hour': 60*60,
+		'day': 60*60*24,
+		'week': 60*60*24*7,
+		'month': 60*60*24*30
+	}
+
+	mat = re.match('^an\s|^a\s|[0-9]+\s|[0-9]+\.[0-9]+', time_string)
+
+	if mat:
+		try:
+			multiplier = float(time_string.split(' ')[0])
+		except:
+			pass
+
+		word = time_string.split(' ')[1]
+		if word in units:
+			seconds = units[word]
+		elif word[-1] == 's' and word[:-1] in units:
+			seconds = units[word[:-1]]
+
+	return seconds * multiplier
+
 async def view_logs(message):
 	try:
 		token = requests.get(logs_url[1] + '/gentoken?password=%s' % logs_password[0]).text
@@ -551,6 +669,7 @@ commander = {
 	'50/50':    {'run': play_5050},
 	'flip':     {'run': flip_coin},
 	'tell':     {'run': do_tell},
+	'remind':   {'run': do_remind},
 
 	'markovsave':    {'run': markov_save},
 	'markovload':    {'run': markov_load, 'perms':[181227668241383425]},
@@ -673,6 +792,14 @@ async def bot_background_task():
 		if voice_wrapper.player:
 			if voice_wrapper.streaming_media and voice_wrapper.player.is_done() and len(voice_wrapper.queue) > 0:
 				await voice_wrapper.play_next()
+
+		try:
+			if len(reminders) > 0 and reminders[0]['when'] < time.time():
+				await client.send_message(discord.utils.get(client.get_all_channels(), id=reminders[0]['channel']), '<@%s> %s' % (reminders[0]['to'], reminders[0]['message']) )
+				del reminders[0]
+				save_reminders()
+		except discord.errors.InvalidArgument:
+			pass
 
 		await asyncio.sleep(1)
 
