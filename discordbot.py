@@ -700,7 +700,7 @@ commander = {
 	'logs':          {'run': view_logs}
 }
 
-banned_ids = ['298068460473286657']
+banned_ids = []
 banned_counter = [0]
 with open('logserver_config.json','r') as f:
 	data = json.load(f)
