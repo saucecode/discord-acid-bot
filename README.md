@@ -3,6 +3,8 @@ My personal Discord chat bot, written in Python 3
 
 `acid-bot` runs on **Python 3.4+** (tested only on 3.5) and requires [gTTS](https://github.com/pndurette/gTTS) (Python TTS library), [discord.py](https://github.com/Rapptz/discord.py/) (Discord Bot API wrapper for Python), [youtube-dl](https://github.com/rg3/youtube-dl) (to play songs in voice chat) and `requests`. It also requires my postfix calculator implementation, which comes included (`postfix.py`).
 
+The bitmap generator requires `nodejs` installed, and `sandbox` installed via NPM.
+
 The `log_server.py` Flask server requires `flask` to be installed. It is a separate program which gives users access to view the logs that the bot keeps.
 
 On start-up, the Discord API token must be read from file `secrettoken` in the same directory.
@@ -101,3 +103,4 @@ When a successful GET request is made to `/gentoken` the response body will be, 
  - `\logs` will generate a link and token for a user to access the logs that the bot keeps.
  - `\play` takes either a query or a URL. If it is a URL to a video or audio site, or is a video or audio stream, it will attempt to play, as `youtube-dl` is capable of such things, being magic and all. All songs are downloaded into directory `downloaded/`. This folder should probably exist before starting the bot. If a thing is currently playing, then the query (not the song) is added the the queue. When a new audio query starts downloading, the bot will start playing from it as soon as it can (instead of waiting for the download to finish).
  - `\vol` Takes a volume for a `\play` stream as a value from 0 to 100. Adjusts the volume on the fly.
+ - `\plop` Takes a javascript function of the form `function(y,x) { ... }` which must always return a 3 element array. It is safely run on the server in a nodejs sandbox, and the output is used by PIL to populate an image with pixels.

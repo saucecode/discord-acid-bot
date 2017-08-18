@@ -9,6 +9,8 @@ import pickle
 import os
 import time
 import threading
+import subprocess
+from PIL import Image
 
 from functools import reduce
 
@@ -654,6 +656,40 @@ async def view_logs(message):
 	except:
 		await client.send_message(message.channel, 'Logs server is non-responsive.')
 
+async def make_plop(message):
+	img = Image.new('RGB', (256,256), "pink")
+	pixels = img.load()
+
+	'''
+		function(x,y) {return [min(x+y,255),min(2*x+y,255),min(y*x,255)];}
+	'''
+
+	code = message.content[6:]
+	with open('tmp_code.js','w') as f:
+		f.write(code)
+
+	# get data from javascript:
+	# for(a=0; a<20; a++) for(b=0;b<20;b++) console.log(function(x,y){return x+y;}(a,b))
+	node_command = """code=(require('fs')).readFileSync('tmp_code.js','utf8');sandbox=(new (require('sandbox')));sandbox.options.timeout=5000;sandbox.run( 'for(a=0; a<256; a++) for(b=0;b<256;b++) console.log((' + code + ')(a,b))', function(o){console.log(JSON.stringify(o));} );"""
+
+	o = subprocess.getoutput('nodejs -e "%s"' % (node_command,))
+
+	if len(o) < 200:
+		await client.send_message(message.channel, o)
+		return
+
+	pixdata = json.loads(o)
+
+	i = 0
+	for y in range(img.size[1]):
+		for x in range(img.size[0]):
+			i += 1
+			if i >= img.size[0] * img.size[1]: break
+			pixels[x,y] = tuple( int(a) for a in pixdata['console'][i] )
+
+	img.save('plop.png')
+	with open('plop.png','rb') as f:
+		await client.send_file(message.channel, f)
 
 commander = {
 	'help':     {'run': do_help},
@@ -696,6 +732,8 @@ commander = {
 	'problems':      {'run': mathgame.pose_questionset},
 	'ans':           {'run': mathgame.answer_query},
 	'scores':        {'run': mathgame.showscores},
+
+	'plop':          {'run': make_plop},
 
 	'logs':          {'run': view_logs}
 }
