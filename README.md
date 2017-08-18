@@ -104,3 +104,9 @@ When a successful GET request is made to `/gentoken` the response body will be, 
  - `\play` takes either a query or a URL. If it is a URL to a video or audio site, or is a video or audio stream, it will attempt to play, as `youtube-dl` is capable of such things, being magic and all. All songs are downloaded into directory `downloaded/`. This folder should probably exist before starting the bot. If a thing is currently playing, then the query (not the song) is added the the queue. When a new audio query starts downloading, the bot will start playing from it as soon as it can (instead of waiting for the download to finish).
  - `\vol` Takes a volume for a `\play` stream as a value from 0 to 100. Adjusts the volume on the fly.
  - `\plop` Takes a javascript function of the form `function(y,x) { ... }` which must always return a 3 element array. It is safely run on the server in a nodejs sandbox, and the output is used by PIL to populate an image with pixels.
+
+### `\plop` samples
+
+`\plop function(y,x){ x -=128; y-=128; x*=4; y*=4; if( Math.abs( Math.tan(Math.hypot(x,y)*Math.PI/180) - y/x) < 2 ) return [255,255,255]; else return [0,0,0]; }`
+
+![spirals!](http://i.imgur.com/aX0l973.png)
