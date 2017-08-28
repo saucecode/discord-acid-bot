@@ -18,6 +18,7 @@ discord.opus.load_opus('libopus.so.0')
 
 from gtts import gTTS
 from youtube_dl import YoutubeDL
+import youtube_dl
 
 import postfix
 import dictionarycom as dictionary
@@ -53,8 +54,30 @@ class VoiceWrapper():
 			channel = self.current_channel
 
 		query = self.queue[0]
+		if type(query) == tuple and query[1] == 'cache':
+
+			messages_to_delete.append({
+				'time': time.time() + 10.0,
+				'message': await client.send_message(channel, 'Getting audio for: **%s** ' % (query[0]))
+			})
+
+			self.player = voice_wrapper.voice.create_ffmpeg_player('downloaded/'+query[0], after=voice_wrapper.after_streaming)
+			self.player.volume = voice_wrapper.volume
+			self.streaming_media = True
+			self.player.start()
+
+			return
+
 		ydl = YoutubeDL( {'outtmpl': 'downloaded/%(title)s-%(id)s.%(ext)s', 'format': 'bestaudio/best', 'default_search': 'ytsearch', 'cachedir':'downloaded', 'nopart':'true'} )
-		entries = ydl.extract_info(query, download=False)
+
+		try:
+			entries = ydl.extract_info(query, download=False)
+		except youtube_dl.utils.DownloadError as err:
+			await client.send_message(channel, 'Failed to download.')
+			self.is_ready = True
+			del self.queue[0]
+			return
+
 		if 'entries' in entries:
 			entries = entries['entries']
 
@@ -63,7 +86,10 @@ class VoiceWrapper():
 
 		else:
 			entry = entries[0] if type(entries) == list else entries
-			await client.send_message(channel, 'Getting audio for: **%s** ' % (entry['title']))
+			messages_to_delete.append({
+				'time': time.time() + 10.0,
+				'message': await client.send_message(channel, 'Getting audio for: **%s** ' % (entry['title']))
+			})
 
 			def _download_call(url):
 				ydl.download([url])
@@ -219,6 +245,8 @@ def save_reminders():
 	with open('reminders.json','w') as f:
 		json.dump(reminders, f)
 
+messages_to_delete = []
+
 remove_urls = lambda x:re.sub(r'^https?:\/\/.*[\r\n]*', '', x, flags=re.MULTILINE)
 
 HELP_STRING = r'''Acid-Bot Commands```
@@ -248,6 +276,7 @@ HELP_STRING = r'''Acid-Bot Commands```
 \play [URL or title] Plays the audio at [URL] or searches YouTube for [Title].
                      Supports playing from 1039 websites (http://bit.ly/2d9yknp)
 					 If already playing, adds query to the queue.
+\clay [query]        Play/queue a song from the cache.
 \skip                Skip current song
 \stop                Stop playback. Discards queue.
 
@@ -482,7 +511,50 @@ async def voice_play_youtube(message):
 		return
 
 	voice_wrapper.queue.append(query)
-	await client.send_message(message.channel, 'Added to queue.')
+	messages_to_delete.append({
+		'time': time.time() + 3.0,
+		'message': await client.send_message(message.channel, 'Added to queue.')
+	})
+
+	if voice_wrapper.is_ready:
+		voice_wrapper.is_ready = False
+
+		if not voice_wrapper.player or not voice_wrapper.player.is_playing():
+			await voice_wrapper.play_next(message.channel)
+
+async def voice_play_cached(message):
+	if not voice_wrapper.voice:
+		await client.send_message(message.channel, 'Run \\voice first, %s' % sailor_word())
+		return
+	files = os.listdir('downloaded/')
+	query = message.content[6:]
+	flatten = lambda l: [item for sublist in l for item in sublist]
+
+	if not all([len(x) > 2 for x in query.split(' ')]):
+		await client.send_message(message.channel, 'Query must be longer than 2 characters.')
+		return
+
+	if '..' in query or '/' in query:
+		await client.send_message(message.channel, 'Nice try, Prescott!')
+		return
+
+	# get all files who contain at least one word in the query string
+	# example: query = "rick never" will return all files with "rick" and "never" in their names.
+	# cases are ignored
+	files = list(set(flatten([[x for x in files if q.lower() in x.lower().replace('-','')] for q in query.split(' ')])))
+
+	files_sorted = []
+	for f in files:
+		count = 0
+		for tag in query.split(' '):
+			if tag.lower() in f.lower().replace('-',''):
+				count += 1
+		files_sorted.append( (count, f) )
+	files_sorted = [x[1] for x in sorted(files_sorted, reverse=True, key=lambda x:x[0])]
+
+	if len(files) > 0:
+		voice_wrapper.queue.append( (files_sorted[0], 'cache') )
+		await client.send_message(message.channel, 'Queueing %s' % files_sorted[0])
 
 	if voice_wrapper.is_ready:
 		voice_wrapper.is_ready = False
@@ -491,9 +563,10 @@ async def voice_play_youtube(message):
 			await voice_wrapper.play_next(message.channel)
 
 async def voice_stop_youtube(message):
+	voice_wrapper.queue.clear()
+	voice_wrapper.streaming_media = False
+	voice_wrapper.is_ready = True
 	if voice_wrapper.player.is_playing():
-		voice_wrapper.queue.clear()
-		voice_wrapper.streaming_media = False
 		voice_wrapper.player.stop()
 
 async def voice_skip_current(message):
@@ -725,6 +798,7 @@ commander = {
 	'chlang':        {'run': change_voice_lang},
 	'tts':           {'run': voice_say},
 	'play':          {'run': voice_play_youtube},
+	'clay':          {'run': voice_play_cached},
 	'skip':          {'run': voice_skip_current},
 	'stop':          {'run': voice_stop_youtube},
 	'vol':           {'run': voice_volume},
@@ -827,6 +901,7 @@ async def on_message_delete(message):
 
 async def bot_background_task():
 	while not client.is_closed:
+		await asyncio.sleep(1)
 		if voice_wrapper.player:
 			if voice_wrapper.streaming_media and voice_wrapper.player.is_done() and len(voice_wrapper.queue) > 0:
 				await voice_wrapper.play_next()
@@ -839,7 +914,14 @@ async def bot_background_task():
 		except discord.errors.InvalidArgument:
 			pass
 
-		await asyncio.sleep(1)
+		global messages_to_delete
+		t = time.time()
+		for message in messages_to_delete:
+			if message['time'] < t:
+				message['deleted'] = 1
+				await client.delete_message(message['message'])
+
+		messages_to_delete[:] = [value for value in messages_to_delete if not 'deleted' in value]
 
 with open('secrettoken', 'r') as f:
 	client.loop.create_task(bot_background_task())
