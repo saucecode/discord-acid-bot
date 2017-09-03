@@ -513,7 +513,7 @@ async def voice_play_youtube(message):
 	voice_wrapper.queue.append(query)
 	messages_to_delete.append({
 		'time': time.time() + 3.0,
-		'message': await client.send_message(message.channel, 'Added to queue.')
+		'message': await client.send_message(message.channel, 'Added to queue in position %i' % (len(voice_wrapper.queue)-1))
 	})
 
 	if voice_wrapper.is_ready:
@@ -554,13 +554,47 @@ async def voice_play_cached(message):
 
 	if len(files) > 0:
 		voice_wrapper.queue.append( (files_sorted[0], 'cache') )
-		await client.send_message(message.channel, 'Queueing %s' % files_sorted[0])
+		messages_to_delete.append({
+			'time': time.time() + 5.0,
+			'message': await client.send_message(message.channel, 'Queueing %s in position %i' % (files_sorted[0], len(voice_wrapper.queue)-1))
+		})
 
 	if voice_wrapper.is_ready:
 		voice_wrapper.is_ready = False
 
 		if not voice_wrapper.player or not voice_wrapper.player.is_playing():
 			await voice_wrapper.play_next(message.channel)
+
+async def voice_view_queue(message):
+	if len(voice_wrapper.queue) == 0:
+		await client.send_message(message.channel, 'Nothing in the queue!')
+	else:
+		lines = []
+		for k,item in enumerate(voice_wrapper.queue):
+			if type(item) == tuple:
+				lines.append('%i. %s' % (k, item[0]))
+			else:
+				lines.append('%i. (Search) %s' % (k, item))
+		await client.send_message(message.channel, 'Current playing queue:\n```%s```' % '\n'.join(lines))
+
+async def voice_pop_queue(message):
+	try:
+		index = int(message.content.split(' ')[1])
+		if index < 1:
+			await client.send_message(message.channel, 'Cannot pop from the top of the list %s. Try `\\skip`.' % sailor_word())
+			return
+
+		if index >= len(voice_wrapper.queue):
+			await client.send_message(message.channel, 'Your number is too big %s.' % sailor_word())
+			return
+
+		value = voice_wrapper.queue[index]
+		del voice_wrapper.queue[index]
+
+		await client.send_message(message.channel, 'Removed `%s` from the queue.' % (value[0] if type(value) == tuple else value))
+
+	except ValueError:
+		await client.send_message(message.channel, 'Needs to be a number, %s. Try `\\queue`.' % sailor_word())
 
 async def voice_stop_youtube(message):
 	voice_wrapper.queue.clear()
@@ -799,6 +833,8 @@ commander = {
 	'tts':           {'run': voice_say},
 	'play':          {'run': voice_play_youtube},
 	'clay':          {'run': voice_play_cached},
+	'queue':         {'run': voice_view_queue},
+	'queuepop':      {'run': voice_pop_queue},
 	'skip':          {'run': voice_skip_current},
 	'stop':          {'run': voice_stop_youtube},
 	'vol':           {'run': voice_volume},
