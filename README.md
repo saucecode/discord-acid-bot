@@ -37,7 +37,9 @@ On start-up, the Discord API token must be read from file `secrettoken` in the s
 	\play [URL or title] Plays the audio at [URL] or searches YouTube for [Title].
 						 Supports playing from 1039 websites (http://bit.ly/2d9yknp)
 						 If already playing, adds query to the queue.
-	\skip                Skip current song
+	\skip                Skip current song.
+	\queue               View the current queue.
+	\queuepop [n]        Removes item [n] from the queue.
 	\stop                Stop playback. Discards queue.
 
 	\tts                 Say something with the tts

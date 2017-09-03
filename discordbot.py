@@ -277,7 +277,9 @@ HELP_STRING = r'''Acid-Bot Commands```
                      Supports playing from 1039 websites (http://bit.ly/2d9yknp)
 					 If already playing, adds query to the queue.
 \clay [query]        Play/queue a song from the cache.
-\skip                Skip current song
+\skip                Skip current song.
+\queue               View the current queue.
+\queuepop [n]        Removes item [n] from the queue.
 \stop                Stop playback. Discards queue.
 
 \tts                 Say something with the tts
