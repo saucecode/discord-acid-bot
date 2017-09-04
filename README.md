@@ -21,7 +21,8 @@ On start-up, the Discord API token must be read from file `secrettoken` in the s
 	\ud [word]           Lookup the urban definition of [word]
 	\50/50               You feeling lucky?
 	\flip                Flip a coin
-	\tell @[name] [msg]   Send [msg] to @[name] next time the bot sees them.
+	\callvote [message]  Calls a vote and counts the tally after 7 seconds.
+	\tell @[name] [msg]  Send [msg] to @[name] next time the bot sees them.
 
 	\remind @[name] [msg] in [time]    Send a reminder to @[name] after [time].
 

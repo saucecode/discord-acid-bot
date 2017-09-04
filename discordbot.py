@@ -222,6 +222,8 @@ markov = Markov()
 voice_wrapper = VoiceWrapper()
 mathgame = MathRunner()
 
+votes = []
+
 reactions = {}
 if os.path.exists('reactions.json'):
 	with open('reactions.json','r') as f:
@@ -260,7 +262,8 @@ HELP_STRING = r'''Acid-Bot Commands```
 \ud [word]           Lookup the urban definition of [word]
 \50/50               You feeling lucky?
 \flip                Flip a coin
-\tell @[name] [msg]   Send [msg] to @[name] next time the bot sees them.
+\callvote [message]  Calls a vote and counts the tally after 7 seconds.
+\tell @[name] [msg]  Send [msg] to @[name] next time the bot sees them.
 
 \remind @[name] [msg] in [time]    Send a reminder to @[name] after [time].
 
@@ -444,6 +447,24 @@ async def reaction_del(message):
 		await client.send_message(message.channel, 'Deleted reaction: ```%s```' % marry_poppin)
 	except:
 		pass
+
+async def do_call_vote(message):
+	# spawn a message with the vote, and one upvote and one downvote button
+	# wait n seconds
+	# delete vote message
+	# post new message with vote results
+	vote_string = message.content[10:]
+	VOTE_LENGTH = 7
+
+	vote = await client.send_message(message.channel, '**Hear, hear! A vote has been called!**\n`%s`' % (vote_string))
+	await client.add_reaction(vote, '\U0001F44D')
+	await client.add_reaction(vote, '\U0001F44E')
+
+	votes.append({
+		'vote_string': vote_string,
+		'message': vote,
+		'expires': time.time() + VOTE_LENGTH
+	})
 
 async def play_5050(message):
 	dat = requests.get('https://reddit.com/r/fiftyfifty/.json', headers={'User-Agent':'Discord-Acid-Bot /u/saucecode'}).json()
@@ -815,6 +836,7 @@ commander = {
 	'flip':     {'run': flip_coin},
 	'tell':     {'run': do_tell},
 	'remind':   {'run': do_remind},
+	'callvote': {'run': do_call_vote},
 
 	'markovsave':    {'run': markov_save},
 	'markovload':    {'run': markov_load, 'perms':[181227668241383425]},
@@ -960,6 +982,28 @@ async def bot_background_task():
 				await client.delete_message(message['message'])
 
 		messages_to_delete[:] = [value for value in messages_to_delete if not 'deleted' in value]
+
+		global votes
+		t = time.time()
+		for v in votes:
+			if v['expires'] < t:
+				v['message'] = await client.get_message(v['message'].channel, v['message'].id)
+
+				users_voted_for = await client.get_reaction_users([x for x in v['message'].reactions if x.emoji == '\U0001F44D'][0])
+				users_voted_against = await client.get_reaction_users([x for x in v['message'].reactions if x.emoji == '\U0001F44E'][0])
+
+				double_voters = len([x for x in users_voted_for if x in users_voted_against]) - 1
+
+				votes_for = [x for x in v['message'].reactions if x.emoji == '\U0001F44D'][0].count - 1 - double_voters
+				votes_against = [x for x in v['message'].reactions if x.emoji == '\U0001F44E'][0].count - 1 - double_voters
+
+				await client.delete_message(v['message'])
+				if double_voters == 0:
+					await client.send_message(v['message'].channel, 'The results are in: `%s`\n**%i for**, **%i against**!' % (v['vote_string'], votes_for, votes_against))
+				else:
+					await client.send_message(v['message'].channel, 'The results are in: `%s`\n**%i for**, **%i against**! %i %s voted for both, and their votes were not counted.' % (v['vote_string'], votes_for, votes_against, double_voters, 'person' if double_voters == 1 else 'people'))
+
+		votes[:] = [v for v in votes if v['expires'] > t]
 
 with open('secrettoken', 'r') as f:
 	client.loop.create_task(bot_background_task())
