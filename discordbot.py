@@ -10,6 +10,7 @@ import os
 import time
 import threading
 import subprocess
+import string
 from PIL import Image
 
 from functools import reduce
@@ -19,6 +20,7 @@ discord.opus.load_opus('libopus.so.0')
 from gtts import gTTS
 from youtube_dl import YoutubeDL
 import youtube_dl
+import markovify
 
 import postfix
 import dictionarycom as dictionary
@@ -234,6 +236,11 @@ if os.path.exists('tells.json'):
 	with open('tells.json','r') as f:
 		tells = json.load(f)
 
+playlists = {}
+if os.path.exists('playlists.json'):
+	with open('playlists.json','r') as f:
+		playlists = json.load(f)
+
 reminders = []
 if os.path.exists('reminders.json'):
 	with open('reminders.json','r') as f:
@@ -247,9 +254,96 @@ def save_reminders():
 	with open('reminders.json','w') as f:
 		json.dump(reminders, f)
 
+def save_playlists():
+	with open('playlists.json','w') as f:
+		json.dump(playlists, f)
+
 messages_to_delete = []
 
 remove_urls = lambda x:re.sub(r'^https?:\/\/.*[\r\n]*', '', x, flags=re.MULTILINE)
+
+HELP_STRINGS = {
+	'general': r'''```Acid-Bot Help Menu
+You are viewing the general help section. Try
+\help reactions       \help music       \help imitate
+  for more help pages.
+
+The commands are:
+\help                This helpful message.
+\rr [subreddit]      Get a random image from [subreddit]
+\calc [query]        Postfix calculator
+\whoami              User stats
+\whois [username]    ^ Ditto
+\ping                Pong.
+\define [word]       Lookup the definition of [word]
+\ud [word]           Lookup the urban definition of [word]
+\50/50               You feeling lucky?
+\flip                Flip a coin
+\callvote [message]  Calls a vote and counts the tally after 7 seconds.
+\tell @[name] [msg]  Send [msg] to @[name] next time the bot sees them.
+
+\remind @[name] [msg] in [time]    Send a reminder to @[name] after [time].
+
+\listadd [name] [item] Add an item to the list with [name]
+\listpop [name] [num]  Remove item [num] from list [name]
+\lists                 View your lists
+\list [name]           View the contents of list [name]
+
+MathGame Commands
+\scores                List math scores
+\problems              Start a short 10 question basic facts test
+\ans [ans1] [ans2] ... Answer the basic facts test
+
+Debug (Admin) Commands:
+\rename [newname] \setgame [playing]
+```''',
+
+	'reactions': r'''```Reactions Help Guide
+Reactions are a useful way to save images or text to be recalled later.
+
+\reactionadd [name] [url]    Add a new link to the [name] collection
+\reactions                   Lists all the reaction collections
+\\[name]                     Sends a random reaction from [name] collection (TWO backslashes)
+
+\reactiondel [name] [num]    Delete a reaction with number [num] from collection [name]
+```''',
+
+	'imitate': r'''```Imitation commands
+The markov bot imitation commands (currently non-functional).
+
+\imitate [username] (length) (tts)  Imitate [username] (Markov Chains!).
+\markovusers         List users' markov ratings (higher number means better \imitate)
+\markovsave          Save markov data to disk
+
+\markovload \markovclear [username] \markovfeed [username] [url]
+```''',
+
+	'music': r'''```Music/Voice Commands
+\voice               Connect/disconnect from your voice channel
+\play [URL or title] Plays the audio at [URL] or searches YouTube for [Title].
+                     Supports playing from 1039 websites (http://bit.ly/2d9yknp)
+					 If already playing, adds query to the queue.
+\clay [query]        Play/queue a song from the cache.
+
+\clay is *always* faster than \play since it doesn't have to run a search.
+
+\skip                Skip current song.
+\queue               View the current queue.
+\queuepop [n]        Removes item [n] from the queue.
+\stop                Stop playback. Discards queue.
+
+Playlist Commands
+\pls                   Display a list of all playlists.
+\pl [name]             Displays the songs in a playlist [name].
+\pladd [name] [query]  Adds a song (from the cache) into the playlist [name].
+\plpop [name] [num]    Removes song number [num] from a playlist [name].
+\plplay [name]         Puts the current playlist in the queue.
+
+Google's TTS
+\tts [something]     Say [something] with the tts
+\chlang              Changes the tts language (from https://pastebin.com/QxdGXShe)
+```'''
+}
 
 HELP_STRING = r'''Acid-Bot Commands```
 \help                This helpful message.
@@ -292,10 +386,7 @@ HELP_STRING = r'''Acid-Bot Commands```
 \problems              Start a short 10 question basic facts test
 \ans [ans1] [ans2] ... Answer the basic facts test
 
-\logs               Generates a link to the logs.
-
 Debug (Admin) Commands:
-\markovload \markovclear [username] \markovfeed [username] [url]
 \rename [newname] \setgame [playing] \reactiondel [name] [num] ```'''
 
 
@@ -454,7 +545,7 @@ async def do_call_vote(message):
 	# delete vote message
 	# post new message with vote results
 	vote_string = message.content[10:]
-	VOTE_LENGTH = 7
+	VOTE_LENGTH = 17
 
 	vote = await client.send_message(message.channel, '**Hear, hear! A vote has been called!**\n`%s`' % (vote_string))
 	await client.add_reaction(vote, '\U0001F44D')
@@ -476,7 +567,15 @@ async def play_5050(message):
 	await client.send_message(message.channel, url)
 
 async def do_help(message):
-	await client.send_message(message.channel, HELP_STRING)
+	if not ' ' in message.content:
+		await client.send_message(message.channel, HELP_STRINGS['general'])
+		return
+
+	page = message.content.split(' ')[1]
+	if page in HELP_STRINGS:
+		await client.send_message(message.channel, HELP_STRINGS[page])
+	else:
+		await client.send_message(message.channel, HELP_STRINGS['general'])
 
 async def flip_coin(message):
 	await client.send_message(message.channel, 'You rolled ' + random.choice( ['Heads', 'Tails.'] ))
@@ -545,12 +644,8 @@ async def voice_play_youtube(message):
 		if not voice_wrapper.player or not voice_wrapper.player.is_playing():
 			await voice_wrapper.play_next(message.channel)
 
-async def voice_play_cached(message):
-	if not voice_wrapper.voice:
-		await client.send_message(message.channel, 'Run \\voice first, %s' % sailor_word())
-		return
+async def search_songs(message, query):
 	files = os.listdir('downloaded/')
-	query = message.content[6:]
 	flatten = lambda l: [item for sublist in l for item in sublist]
 
 	if not all([len(x) > 2 for x in query.split(' ')]):
@@ -559,7 +654,7 @@ async def voice_play_cached(message):
 
 	if '..' in query or '/' in query:
 		await client.send_message(message.channel, 'Nice try, Prescott!')
-		return
+		return []
 
 	# get all files who contain at least one word in the query string
 	# example: query = "rick never" will return all files with "rick" and "never" in their names.
@@ -574,13 +669,22 @@ async def voice_play_cached(message):
 				count += 1
 		files_sorted.append( (count, f) )
 	files_sorted = [x[1] for x in sorted(files_sorted, reverse=True, key=lambda x:x[0])]
+	return files_sorted
 
-	if len(files) > 0:
+async def voice_play_cached(message):
+	if not voice_wrapper.voice:
+		await client.send_message(message.channel, 'Run \\voice first, %s' % sailor_word())
+		return
+	files_sorted = await search_songs(message, message.content[6:])
+
+	if len(files_sorted) > 0:
 		voice_wrapper.queue.append( (files_sorted[0], 'cache') )
 		messages_to_delete.append({
 			'time': time.time() + 5.0,
 			'message': await client.send_message(message.channel, 'Queueing %s in position %i' % (files_sorted[0], len(voice_wrapper.queue)-1))
 		})
+	else:
+		return
 
 	if voice_wrapper.is_ready:
 		voice_wrapper.is_ready = False
@@ -651,6 +755,70 @@ async def voice_volume(message):
 		# special message for a special guy
 		if random.random() > 0.99:
 			await client.send_message(message.channel, 'Volume set, daddy.')
+
+async def playlist_add(message):
+	playlist_name = message.content.split(' ')[1]
+	query = ' '.join(message.content.split(' ')[2:])
+	song_list = await search_songs(message, query)
+
+	if len(song_list) == 0:
+		return
+
+	song = song_list[0]
+
+	if not playlist_name in playlists:
+		playlists[playlist_name] = []
+
+	playlists[playlist_name].append(song)
+
+	save_playlists()
+
+	await client.send_message(message.channel, 'Added `%s` to position %i' % (song, len(playlists[playlist_name])-1))
+
+
+async def playlist_pop(message):
+	playlist_name = message.content.split(' ')[1]
+
+	if not playlist_name in playlists:
+		await client.send_message(message.channel, 'Playlist does not exist.')
+		return
+
+	position = int(message.content.split(' ')[2])
+	if position < len(playlists[playlist_name]) and position >= 0:
+		song = playlists[playlist_name].pop(position)
+		await client.send_message(message.channel, 'Removed song `%s`' % song)
+		if len(playlists[playlist_name]) == 0:
+			del playlists[playlist_name]
+		save_playlists()
+	else:
+		await client.send_message(message.channel, 'Nope.jpg')
+
+async def playlist_list(message):
+	await client.send_message(message.channel, ', '.join(playlists))
+
+async def playlist_play(message):
+	songlist = [(x, 'cache') for x in playlists[message.content.split(' ')[1]]]
+	voice_wrapper.queue.extend( random.sample(songlist, k=len(songlist)) ) # random.sample does a shuffle without overwriting the original songlist (immutable random.shuffle)
+	if voice_wrapper.is_ready:
+		voice_wrapper.is_ready = False
+
+	if not voice_wrapper.player or not voice_wrapper.player.is_playing():
+		await voice_wrapper.play_next(message.channel)
+
+async def playlist_list_songs(message):
+	playlist_name = message.content.split(' ')[1]
+
+	if not playlist_name in playlists:
+		await client.send_message(message.channel, 'Playlist does not exist.')
+		return
+
+	if len(playlists[playlist_name]) == 0:
+		await client.send_message(message.channel, 'Nothing in the playlist!')
+	else:
+		lines = []
+		for k,item in enumerate(playlists[playlist_name]):
+			lines.append('%i. %s' % (k, item))
+		await client.send_message(message.channel, 'Playlist contents:\n```%s```' % '\n'.join(lines))
 
 async def do_tell(message):
 	target = message.content.split(' ')[1]
@@ -821,6 +989,90 @@ async def make_plop(message):
 	with open('plop.png','rb') as f:
 		await client.send_file(message.channel, f)
 
+markow = {}
+
+async def markowfile(message):
+	name = message.content.split(' ')[1]
+	for i in name:
+		if not i in string.ascii_letters:
+			return
+
+	with open('%s.markov.json' % name,'r') as f:
+		markow[name] = markovify.Text.from_json(f.read())
+		await client.send_message(message.channel, 'Loaded.')
+
+async def imitate_imitate(message):
+	name = message.content.split(' ')[1]
+	if not name in markow:
+		await client.send_message(message.channel, repr(markow))
+		return
+
+	await client.send_message(message.channel, markow[name].make_short_sentence(270, tries=10000))
+
+'''
+'listadd':       {'run': listadd},
+'listpop':       {'run': listpop},
+'lists':         {'run': list_lists},
+'list':          {'run': view_list}'''
+
+userlists = {}
+if not os.path.exists('userlists.json'):
+	with open('userlists.json','w') as f:
+		json.dump(userlists, f)
+
+with open('userlists.json','r') as f:
+	userlists = json.load(f)
+
+async def listadd(message):
+	if not message.author.id in userlists:
+		userlists[message.author.id] = {}
+
+	listname = message.content.split(' ')[1]
+	if not listname in userlists[message.author.id]:
+		userlists[message.author.id][listname] = []
+
+	userlists[message.author.id][listname].append( ' '.join(message.content.split(' ')[2:]) )
+
+	with open('userlists.json','w') as f:
+		json.dump(userlists, f)
+
+	await client.send_message(message.channel, 'List %s now has %i elements.' % (listname, len(userlists[message.author.id][listname])))
+
+async def listpop(message):
+	if not message.author.id in userlists:
+		return
+
+	listname = message.content.split(' ')[1]
+	if not listname in userlists[message.author.id]:
+		await client.send_message(message.channel, 'This list doesn\'t exist, %s' % sailor_word())
+
+	element = int(message.content.split(' ')[2])
+	if element >= len(userlists[message.author.id]):
+		return
+
+	userlists[message.author.id][listname].pop(element)
+
+	with open('userlists.json','w') as f:
+		json.dump(userlists, f)
+
+	await client.send_message(message.channel, 'Popped!')
+
+async def list_lists(message):
+	if not message.author.id in userlists:
+		return
+
+	await client.send_message(message.channel, '\n'.join( [str(k) + ' ' + v for k,v in enumerate(userlists[message.author.id])] ))
+
+async def view_list(message):
+	if not message.author.id in userlists:
+		return
+
+	listname = message.content.split(' ')[1]
+	if not listname in userlists[message.author.id]:
+		await client.send_message(message.channel, 'This list doesn\'t exist, %s' % sailor_word())
+
+	await client.send_message(message.channel, '\n'.join( [str(k) + ' ' + v for k,v in enumerate(userlists[message.author.id][listname])] ))
+
 commander = {
 	'help':     {'run': do_help},
 	'ping':     {'run': pong},
@@ -831,18 +1083,21 @@ commander = {
 	'define':   {'run': define_word},
 	'ud':       {'run': urban_define_word},
 	'rrtop':    {'run': get_random_top_reddit_image},
-	'imitate':  {'run': do_imitate},
+	#'imitate':  {'run': do_imitate},
 	'50/50':    {'run': play_5050},
 	'flip':     {'run': flip_coin},
 	'tell':     {'run': do_tell},
 	'remind':   {'run': do_remind},
 	'callvote': {'run': do_call_vote},
 
-	'markovsave':    {'run': markov_save},
-	'markovload':    {'run': markov_load, 'perms':[181227668241383425]},
-	'markovusers':   {'run': markov_users},
-	'markovclear':   {'run': markov_clear, 'perms':[181227668241383425]},
-	'markovfeed':    {'run': markov_feed, 'perms':[181227668241383425, 304098431973064705]},
+	# 'markovsave':    {'run': markov_save},
+	# 'markovload':    {'run': markov_load, 'perms':[181227668241383425]},
+	# 'markovusers':   {'run': markov_users},
+	# 'markovclear':   {'run': markov_clear, 'perms':[181227668241383425]},
+	# 'markovfeed':    {'run': markov_feed, 'perms':[181227668241383425, 304098431973064705]},
+
+	'imitate':       {'run': imitate_imitate},
+	'markowfile':    {'run': markowfile, 'perms':[181227668241383425]},
 
 	'reactionadd':   {'run': reaction_add},
 	'reactiondel':   {'run': reaction_del, 'perms':[181227668241383425, 304098431973064705, 182411730435964928]},
@@ -857,11 +1112,25 @@ commander = {
 	'tts':           {'run': voice_say},
 	'play':          {'run': voice_play_youtube},
 	'clay':          {'run': voice_play_cached},
+
 	'queue':         {'run': voice_view_queue},
 	'queuepop':      {'run': voice_pop_queue},
+	'pladd':         {'run': playlist_add},
+	'plpop':         {'run': playlist_pop},
+	'pls':           {'run': playlist_list},
+	'pl':            {'run': playlist_list_songs},
+	'plplay':        {'run': playlist_play},
 	'skip':          {'run': voice_skip_current},
 	'stop':          {'run': voice_stop_youtube},
 	'vol':           {'run': voice_volume},
+
+	'listadd':       {'run': listadd},
+	'listpop':       {'run': listpop},
+	'lists':         {'run': list_lists},
+	'list':          {'run': view_list},
+
+	#'connect4':      {'run': play_connect4},
+	#'c4stop':        {'run': stop_connect4},
 
 	'problems':      {'run': mathgame.pose_questionset},
 	'ans':           {'run': mathgame.answer_query},
