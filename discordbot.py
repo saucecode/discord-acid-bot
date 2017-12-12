@@ -1091,21 +1091,21 @@ commander = {
 	'callvote': {'run': do_call_vote},
 
 	# 'markovsave':    {'run': markov_save},
-	# 'markovload':    {'run': markov_load, 'perms':[181227668241383425]},
+	# 'markovload':    {'run': markov_load, 'perms':[181227668241383425, 182411730435964928]},
 	# 'markovusers':   {'run': markov_users},
-	# 'markovclear':   {'run': markov_clear, 'perms':[181227668241383425]},
-	# 'markovfeed':    {'run': markov_feed, 'perms':[181227668241383425, 304098431973064705]},
+	# 'markovclear':   {'run': markov_clear, 'perms':[181227668241383425, 182411730435964928]},
+	# 'markovfeed':    {'run': markov_feed, 'perms':[181227668241383425, 304098431973064705, 182411730435964928]},
 
 	'imitate':       {'run': imitate_imitate},
-	'markowfile':    {'run': markowfile, 'perms':[181227668241383425]},
+	'markowfile':    {'run': markowfile, 'perms':[181227668241383425, 182411730435964928]},
 
 	'reactionadd':   {'run': reaction_add},
 	'reactiondel':   {'run': reaction_del, 'perms':[181227668241383425, 304098431973064705, 182411730435964928]},
 	'reactions':     {'run': reaction_list},
 	'\\':            {'run': reaction_do},
 
-	'setgame':       {'run': set_game, 'perms':[181227668241383425]},
-	'rename':        {'run': rename_bot, 'perms':[181227668241383425]},
+	'setgame':       {'run': set_game, 'perms':[181227668241383425, 182411730435964928]},
+	'rename':        {'run': rename_bot, 'perms':[181227668241383425, 182411730435964928]},
 
 	'voice':         {'run': voice_request},
 	'chlang':        {'run': change_voice_lang},
